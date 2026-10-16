@@ -10,7 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "overlay",
@@ -36,19 +35,15 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi", "dmg", "app", "deb", "appimage"],
+    "targets": ["nsis", "msi"],
     "shortDescription": "Real-time AI copilot for calls and meetings. Bring your own keys.",
-    "longDescription": "Fluke listens to your calls, transcribes both sides, and streams answers from the model and provider you choose. Keys stay in your OS keychain; history stays on your machine.",
+    "longDescription": "Fluke listens to your calls, transcribes both sides, and streams answers from the model and provider you choose. Keys stay in Windows Credential Manager; history stays on your machine.",
     "category": "Productivity",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "macOS": {
-      "minimumSystemVersion": "14.6"
-    }
+    ]
   }
 }

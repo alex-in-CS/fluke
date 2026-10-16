@@ -3,7 +3,7 @@
 //! Each source runs on its own thread: cpal delivers interleaved samples, we downmix to mono,
 //! resample to 16 kHz, convert to i16 and hand 100 ms frames to the STT task.
 //! System audio uses loopback by opening an *output* device as an input stream
-//! (WASAPI on Windows, a CoreAudio process tap on macOS 14.6+).
+//! (WASAPI loopback).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};

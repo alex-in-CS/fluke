@@ -10,7 +10,13 @@
 </p>
 
 <p align="center">
-  Tauri 2 · Rust · React 19 · TypeScript · ~10 MB installer · Windows / macOS / Linux
+  Tauri 2 · Rust · React 19 · TypeScript · ~10 MB installer · Windows 10/11
+</p>
+
+<p align="center">
+  <a href="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml"><img src="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/alex-in-CS/fluke/releases/latest"><img src="https://img.shields.io/github/v/release/alex-in-CS/fluke?include_prereleases&label=download" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-b6f36b" alt="MIT license" /></a>
 </p>
 
 ---
@@ -23,7 +29,7 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 | | Fluke |
 |---|---|
 | **Your keys, any model** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, xAI, Mistral, Ollama, LM Studio, or any OpenAI-compatible endpoint |
-| **Keys never touch the UI** | Stored in the OS keychain (Windows Credential Manager / macOS Keychain / Secret Service), read only by the Rust core |
+| **Keys never touch the UI** | Stored in Windows Credential Manager, read only by the Rust core |
 | **Knows who said what** | Mic ("You") and system audio ("Them") are captured and transcribed as separate streams, with no virtual audio cable needed |
 | **Proactive** | Detects when the other side asks you a question and drafts an answer as soon as they stop talking |
 | **Context that sticks** | Per-profile instructions, linked reference files (PDF, DOCX, Markdown…) and **meeting memory**: notes from past meetings are fed back in automatically |
@@ -44,12 +50,12 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 
   | Action | Default |
   |---|---|
-  | Answer what's happening now | `Ctrl/⌘ + Shift + Enter` |
-  | Start / stop listening | `Ctrl/⌘ + Shift + L` |
-  | Type a question | `Ctrl/⌘ + Shift + K` |
-  | Show / hide overlay | `Ctrl/⌘ + Shift + Space` |
-  | Click-through | `Ctrl/⌘ + Shift + X` |
-  | Move overlay | `Ctrl/⌘ + Shift + Arrows` |
+  | Answer what's happening now | `Ctrl + Shift + Enter` |
+  | Start / stop listening | `Ctrl + Shift + L` |
+  | Type a question | `Ctrl + Shift + K` |
+  | Show / hide overlay | `Ctrl + Shift + Space` |
+  | Click-through | `Ctrl + Shift + X` |
+  | Move overlay | `Ctrl + Shift + Arrows` |
 
 - **History**: every session's transcript, answers and notes; copy or export to Markdown (`Documents/Fluke`).
 
@@ -58,7 +64,7 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 ```
             ┌──────────────────────────── Rust core (src-tauri) ────────────────────────────┐
  mic ──────►│ audio.rs  cpal capture → mono → rubato resample → 16 kHz i16 frames            │
- speakers ─►│           (system audio via WASAPI loopback / CoreAudio process tap)           │
+ speakers ─►│           (system audio via WASAPI loopback)                                   │
             │      │                                                                         │
             │      ▼                                                                         │
             │ stt.rs    Deepgram websocket (interim+final)  |  VAD segmenter → /audio/transcriptions│
@@ -70,7 +76,7 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
             │      │                                                                         │
             │      ▼                                                                         │
             │ llm/      openai.rs │ anthropic.rs │ gemini.rs   → SSE token stream             │
-            │ secrets.rs (OS keychain)   storage.rs (SQLite)   hotkeys.rs   window.rs (tray)   │
+            │ secrets.rs (Cred. Manager) storage.rs (SQLite)   hotkeys.rs   window.rs (tray)   │
             └──────────────┬─────────────────────────────────────────────────────────────────┘
                            │ Tauri events: transcript · answer deltas · levels · status
                            ▼
@@ -84,7 +90,7 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 Design notes:
 
 - **Two audio streams, not diarization.** "You" is the mic and "Them" is loopback of the output device, so speaker attribution is exact and free.
-- **The UI never holds secrets.** Keys go straight from the settings form to the keychain via a command; the webview only ever sees "key saved (…a1b2)".
+- **The UI never holds secrets.** Keys go straight from the settings form to Windows Credential Manager via a command; the webview only ever sees "key saved (…a1b2)".
 - **Stable context first, volatile context last.** The system prompt holds instructions, files and memory (cacheable); the user turn holds the rolling transcript and the request.
 - **Overlay sizing.** The transparent window resizes to its content (ResizeObserver → `setSize`), because transparent pixels on Windows still swallow clicks.
 
@@ -93,10 +99,8 @@ Design notes:
 ### Prerequisites
 
 - [Rust](https://rustup.rs) (stable) and [Node.js](https://nodejs.org) 20+
-- Platform prerequisites from the [Tauri guide](https://tauri.app/start/prerequisites/):
-  - **Windows**: MSVC Build Tools (C++ x64) + Windows SDK, plus WebView2 (preinstalled on Windows 10/11)
-  - **macOS**: Xcode Command Line Tools. System-audio capture needs macOS 14.6+
-  - **Linux**: `webkit2gtk-4.1`, `libayatana-appindicator3`, `libasound2-dev`, `libxdo-dev`, `libdbus-1-dev`
+- Windows 10/11 with the [Tauri prerequisites](https://tauri.app/start/prerequisites/):
+  MSVC Build Tools (C++ x64) + Windows SDK, plus WebView2 (preinstalled on Windows 10/11)
 
 ### Run
 
@@ -109,8 +113,14 @@ npm run tauri dev
 
 ```bash
 npm run tauri build
-# Windows: src-tauri/target/release/bundle/{nsis,msi}
+# → src-tauri/target/release/bundle/{nsis,msi}
 ```
+
+Tagged releases (`git tag v0.1.0 && git push --tags`) are built by
+[`release.yml`](.github/workflows/release.yml) into a draft GitHub release.
+
+> **Unsigned builds.** Installers aren't code-signed yet. On Windows, SmartScreen may say "Unknown publisher":
+> choose **More info → Run anyway**.
 
 ### First launch
 
@@ -119,6 +129,19 @@ npm run tauri build
 3. **Models**: pick the answering model and transcription model.
 4. **Profiles**: write instructions, attach context files, keep meeting memory on.
 5. Press **Listen**, then **Ask** (or let auto-answer handle it).
+
+### Running it for free
+
+Fluke has no subscription; you only pay your providers, and several have free options:
+
+| Need | Free option | Notes |
+|---|---|---|
+| Transcription, streaming | Deepgram signup credit | Best latency. Fluke streams two channels (you + them), so each call minute uses two |
+| Transcription, utterance-level | Groq `whisper-large-v3-turbo` | Free tier with daily limits |
+| Transcription, offline | **Local Whisper** preset | Run an OpenAI-compatible Whisper server such as [speaches](https://github.com/speaches-ai/speaches) on port 8000. A GPU keeps it fast |
+| Answers | Gemini API free tier (Google AI Studio key), Groq, or Ollama / LM Studio locally | Free tiers may use your data to improve their models; check each provider's terms before using them for confidential calls |
+
+Consumer chat subscriptions (Claude Pro, ChatGPT Plus, Gemini Advanced) don't include API keys.
 
 ## Tests
 
@@ -141,13 +164,15 @@ src-tauri/src/
   context.rs    text extraction for linked files (PDF/DOCX/text)
   memory.rs     meeting notes → memory
   storage.rs    SQLite schema + migrations
-  secrets.rs    OS keychain
+  secrets.rs    Windows Credential Manager
   capture.rs    screenshots
   hotkeys.rs, window.rs, commands.rs, config.rs, state.rs
 src/
   overlay/      floating copilot UI
   settings/     settings window (sections/*)
   lib/          typed IPC wrappers and shared types
+website/        project website (Vite + three.js), see website/README.md
+.github/        CI (lint + tests) and release builds
 ```
 
 ## Responsible use

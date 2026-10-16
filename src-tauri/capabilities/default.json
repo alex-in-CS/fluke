@@ -12,6 +12,10 @@
     "core:window:allow-set-focus",
     "core:window:allow-close",
     "core:window:allow-set-position",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }]
+    }
   ]
 }

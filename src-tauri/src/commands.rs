@@ -67,6 +67,24 @@ pub fn save_settings(
     Ok(settings)
 }
 
+/// End of the first-run setup: remember it, close the setup window and bring up the overlay.
+#[tauri::command]
+pub fn finish_onboarding(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    let settings = {
+        let mut s = state.settings.write();
+        s.onboarded = true;
+        s.clone()
+    };
+    settings.save(&state.settings_path)?;
+    let _ = app.emit(EV_SETTINGS, &settings);
+    window::show_overlay(&app);
+    let _ = app.emit_to(window::OVERLAY, state::EV_ACTION, "welcome");
+    if let Some(w) = app.get_webview_window(window::SETTINGS) {
+        let _ = w.close();
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn key_status(state: State<'_, AppState>) -> Vec<KeyInfo> {
     state

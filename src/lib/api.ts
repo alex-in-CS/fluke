@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type {
   AddDocsResult,
   AnswerEvent,
@@ -21,6 +22,9 @@ import type {
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
+  finishOnboarding: () => invoke<void>("finish_onboarding"),
+  /** Opens an https link in the default browser. */
+  openUrl: (url: string) => openUrl(url),
   keyStatus: () => invoke<KeyInfo[]>("key_status"),
   setApiKey: (providerId: string, key: string) =>
     invoke<void>("set_api_key", { providerId, key }),

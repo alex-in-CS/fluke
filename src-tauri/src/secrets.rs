@@ -1,5 +1,5 @@
-//! API keys live in the OS credential store (Windows Credential Manager, macOS Keychain,
-//! Secret Service on Linux). They are read only in the Rust core and never sent to the webview.
+//! API keys live in Windows Credential Manager. They are read only in the Rust core and never
+//! sent to the webview.
 
 use crate::error::{AppError, Result};
 

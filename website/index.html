@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fluke · The open-source copilot for calls and meetings</title>
+    <meta
+      name="description"
+      content="Fluke hears both sides of your calls, reads your screen when you ask, remembers past meetings and answers with the model and API keys you choose. Free, open source and local-first, for Windows."
+    />
+    <meta name="theme-color" content="#07080a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Fluke · The open-source copilot for calls and meetings" />
+    <meta
+      property="og:description"
+      content="Hears both sides, answers on cue, remembers what you decided. Your keys, any model, nothing in between."
+    />
+    <meta property="og:image" content="%BASE_URL%og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <div class="preloader" aria-hidden="true">
+      <svg class="preloader__wave" viewBox="0 0 600 80" preserveAspectRatio="none">
+        <path d="M0 40" />
+      </svg>
+      <div class="preloader__count"><span>000</span></div>
+    </div>
+
+    <canvas class="stage" aria-hidden="true"></canvas>
+    <div class="grain" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"></span></div>
+
+    <header class="nav">
+      <a class="nav__brand" href="#top" aria-label="Fluke home">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 15.5c-.6-3.2-2.6-5.6-6.2-6.6C4.3 8.5 3 8.9 2.5 9.6c2.6.2 4.6 1.7 5.6 4.1.7 1.7 2 2.6 3.9 2.6s3.2-.9 3.9-2.6c1-2.4 3-3.9 5.6-4.1-.5-.7-1.8-1.1-3.3-.7-3.6 1-5.6 3.4-6.2 6.6Z" fill="currentColor" />
+          <path d="M3 20.5c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+        </svg>
+        <span>Fluke</span>
+      </a>
+      <nav class="nav__links" aria-label="Sections">
+        <a href="#listen">How it works</a>
+        <a href="#private">Privacy</a>
+        <a href="https://github.com/alex-in-CS/fluke" rel="noopener">GitHub</a>
+      </nav>
+      <a class="btn btn--small" href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">Download</a>
+    </header>
+
+    <main id="top">
+      <section class="hero" data-chapter="hero">
+        <div class="hero__copy">
+          <h1 class="hero__title" data-split>Hears the room.<br /><em>Answers on cue.</em></h1>
+          <p class="hero__sub">
+            An open-source copilot that hears both sides of your calls and answers with the model and keys you choose.
+          </p>
+          <div class="hero__cta">
+            <a class="btn btn--primary" data-magnetic href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">
+              <span>Download Fluke</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4-4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </a>
+            <a class="btn btn--ghost" href="https://github.com/alex-in-CS/fluke" rel="noopener">View source</a>
+          </div>
+          <p class="hero__meta">For Windows 10 and 11 <span aria-hidden="true">/</span> MIT licensed</p>
+        </div>
+      </section>
+
+      <section class="chapter chapter--left" id="listen" data-chapter="listen">
+        <div class="chapter__pin">
+          <div class="chapter__copy">
+            <p class="eyebrow"><span>01</span> Listen</p>
+            <h2>Two streams.<br />No guesswork.</h2>
+            <p>
+              Your mic is <b class="you">You</b>. System audio is <b class="them">Them</b>. Fluke transcribes each one on its
+              own, so every line is attributed exactly, with no virtual audio cable and no speaker guessing.
+            </p>
+            <p class="small">Deepgram live streaming, or any Whisper-compatible endpoint, local servers included.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter chapter--right" id="answer" data-chapter="answer">
+        <div class="chapter__pin">
+          <div class="chapter__copy">
+            <p class="eyebrow"><span>02</span> Answer</p>
+            <h2>It speaks up<br />when they ask.</h2>
+            <p>
+              Fluke notices when the other side asks you something and drafts the answer as soon as they stop talking.
+              The reply streams in word by word, grounded in the conversation so far.
+            </p>
+            <p class="small">Or press <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd> to ask about what is happening right now.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter chapter--left" id="see" data-chapter="see">
+        <div class="chapter__pin">
+          <div class="chapter__copy">
+            <p class="eyebrow"><span>03</span> See</p>
+            <h2>Ask, and it<br />looks too.</h2>
+            <p>
+              Attach a screenshot of the screen you are on to any question. Slides, spreadsheets, code: Fluke reads them in
+              context, and only when you ask.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter chapter--right" id="remember" data-chapter="remember">
+        <div class="chapter__pin">
+          <div class="chapter__copy">
+            <p class="eyebrow"><span>04</span> Remember</p>
+            <h2>Starts where the<br />last meeting ended.</h2>
+            <p>
+              When a session ends, Fluke writes notes: decisions, action items, open questions. The next meeting in that
+              profile begins with them already in mind.
+            </p>
+            <ul class="chips" aria-label="Context sources">
+              <li>Meeting notes</li>
+              <li>Profile instructions</li>
+              <li>Linked PDF, DOCX, Markdown</li>
+            </ul>
+            <p class="small">Linked files stay linked. Edit one on disk and the next answer reads the new version.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter chapter--left" id="keys" data-chapter="keys">
+        <div class="chapter__pin">
+          <div class="chapter__copy">
+            <p class="eyebrow"><span>05</span> Your keys</p>
+            <h2>Any model.<br />Your account.</h2>
+            <p>
+              Plug in the providers you already pay for, or run fully local. Keys live in your operating system's keychain,
+              read only by the native core. The interface never sees them.
+            </p>
+            <ul class="providers" aria-label="Supported providers">
+              <li>Anthropic</li><li>OpenAI</li><li>Gemini</li><li>Groq</li><li>OpenRouter</li><li>DeepSeek</li>
+              <li>xAI</li><li>Mistral</li><li>Ollama</li><li>LM Studio</li><li>Deepgram</li><li>Any OpenAI-compatible API</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="private" id="private" data-chapter="private">
+        <div class="private__inner">
+          <p class="eyebrow"><span>06</span> Private by design</p>
+          <h2 class="private__title">Nothing sits between you and your model.</h2>
+          <dl class="facts">
+            <div>
+              <dt>No Fluke servers</dt>
+              <dd>Requests go straight from your machine to the provider you picked.</dd>
+            </div>
+            <div>
+              <dt>No telemetry</dt>
+              <dd>No analytics, no tracking, no account to create.</dd>
+            </div>
+            <div>
+              <dt>History stays local</dt>
+              <dd>Transcripts, answers and notes live in a SQLite file on your disk. Export any session to Markdown.</dd>
+            </div>
+            <div>
+              <dt>Native and light</dt>
+              <dd>A Rust core on the system WebView. The installer is around 10 MB.</dd>
+            </div>
+          </dl>
+          <p class="small private__note">
+            Optional: hide the overlay from screen sharing, so your private notes stay off the shared screen.
+          </p>
+        </div>
+      </section>
+
+      <section class="hotkeys" id="hotkeys" data-chapter="hotkeys">
+        <div class="hotkeys__inner">
+          <p class="eyebrow"><span>07</span> Hotkeys</p>
+          <h2>One keystroke away.</h2>
+          <ol class="keys">
+            <li data-keys="ctrl shift enter"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Enter</kbd></span><span>Answer what is happening now</span></li>
+            <li data-keys="ctrl shift l"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd></span><span>Start or stop listening</span></li>
+            <li data-keys="ctrl shift k"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>K</kbd></span><span>Type a question</span></li>
+            <li data-keys="ctrl shift space"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></span><span>Show or hide the overlay</span></li>
+            <li data-keys="ctrl shift x"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span><span>Click through it</span></li>
+          </ol>
+          <p class="small">Every shortcut is global and configurable.</p>
+        </div>
+      </section>
+
+      <section class="finale" id="download" data-chapter="finale">
+        <div class="finale__inner">
+          <h2 class="finale__title" data-split>Your copilot.<br /><em>Your rules.</em></h2>
+          <div class="finale__cta">
+            <a class="btn btn--primary btn--xl" data-magnetic href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">
+              <span>Download Fluke</span>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4-4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </a>
+            <a class="btn btn--ghost" href="https://github.com/alex-in-CS/fluke" rel="noopener">Star on GitHub</a>
+          </div>
+          <p class="finale__meta">Free and open source, MIT licensed. Windows installer for Windows 10 and 11.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p class="footer__use">
+        Fluke is made for meetings, sales calls, demos and research conversations. Follow the rules where you use it: many
+        exams, interviews and workplaces restrict assistive tools, and some places require everyone's consent before a
+        conversation is transcribed.
+      </p>
+      <div class="footer__row">
+        <span>© 2026 alex-in-CS</span>
+        <a href="https://github.com/alex-in-CS/fluke" rel="noopener">Source</a>
+        <a href="https://github.com/alex-in-CS/fluke/blob/main/LICENSE" rel="noopener">MIT License</a>
+        <a href="https://github.com/alex-in-CS/fluke/issues" rel="noopener">Report an issue</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

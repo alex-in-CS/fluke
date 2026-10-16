@@ -405,6 +405,18 @@ pub fn preset_providers() -> Vec<ProviderConfig> {
             false,
             &[],
         ),
+        // Any OpenAI-compatible Whisper server works; speaches (faster-whisper) listens on 8000.
+        preset(
+            "whisper_local",
+            "Local Whisper (speech-to-text)",
+            OpenaiCompat,
+            "http://localhost:8000/v1",
+            false,
+            &[
+                "Systran/faster-whisper-small",
+                "Systran/faster-distil-whisper-large-v3",
+            ],
+        ),
         preset(
             "deepgram",
             "Deepgram (speech-to-text)",
@@ -440,4 +452,29 @@ fn default_profiles() -> Vec<Profile> {
             ..Default::default()
         },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preset_ids_are_unique() {
+        let presets = preset_providers();
+        let mut ids: Vec<_> = presets.iter().map(|p| p.id.as_str()).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), presets.len());
+    }
+
+    #[test]
+    fn old_settings_gain_new_presets() {
+        let mut s = Settings::default();
+        s.providers.retain(|p| p.id != "whisper_local");
+        s.behavior.opacity = 5.0;
+        s.normalize();
+        let local = s.provider("whisper_local").expect("preset added back");
+        assert!(!local.needs_key);
+        assert_eq!(s.behavior.opacity, 1.0);
+    }
 }

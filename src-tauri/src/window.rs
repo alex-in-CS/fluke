@@ -124,18 +124,30 @@ pub fn open_settings(app: &AppHandle, section: Option<String>) -> Result<()> {
         w.unminimize()?;
         w.show()?;
         w.set_focus()?;
+        if let Some(section) = section {
+            let _ = app.emit_to(SETTINGS, EV_ACTION, format!("section:{section}"));
+        }
     } else {
-        let w = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App("index.html".into()))
-            .title("Fluke Settings")
+        // A new window isn't listening for events yet, so the section rides in the URL.
+        let url = match &section {
+            Some(s) => format!("index.html?section={s}"),
+            None => "index.html".to_owned(),
+        };
+        let w = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App(url.into()))
+            .title("Fluke")
             .inner_size(1040.0, 760.0)
-            .min_inner_size(820.0, 560.0)
+            .min_inner_size(820.0, 600.0)
             .center()
             .build()?;
+        // Closing setup half-way still leaves Fluke reachable (the overlay offers to finish it).
+        let handle = app.clone();
+        w.on_window_event(move |e| {
+            if matches!(e, tauri::WindowEvent::Destroyed) && !state(&handle).settings.read().onboarded {
+                show_overlay(&handle);
+            }
+        });
         let protect = state(app).settings.read().behavior.hide_from_capture;
         let _ = w.set_content_protected(protect);
-    }
-    if let Some(section) = section {
-        let _ = app.emit_to(SETTINGS, EV_ACTION, format!("section:{section}"));
     }
     Ok(())
 }

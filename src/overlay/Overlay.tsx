@@ -22,6 +22,8 @@ import {
 import clsx from "clsx";
 
 import { api, errorText, events, subscribeAll } from "../lib/api";
+import { friendlyError, type Friendly } from "../lib/friendly";
+import { keyParts } from "../lib/hotkeys";
 import { useOverlay, type Answer } from "./store";
 import { Markdown } from "../components/Markdown";
 import { Kbd } from "../components/Kbd";
@@ -59,6 +61,13 @@ export function Overlay() {
           setInputOpen(true);
           requestAnimationFrame(() => inputRef.current?.focus());
         }
+        if (action === "welcome") {
+          const hk = useOverlay.getState().settings?.hotkeys.toggle_overlay;
+          s.pushToast({
+            level: "info",
+            message: `You're set. Fluke stays above your other apps${hk ? `; ${keyParts(hk).join(" + ")} hides or shows it` : ""}.`,
+          });
+        }
       }),
     ]);
   }, []);
@@ -84,9 +93,11 @@ export function Overlay() {
   const llmProvider = settings?.providers.find((p) => p.id === settings.llm.provider_id);
   const needsKey =
     !!settings && !!llmProvider && llmProvider.needs_key && !keys.find((k) => k.provider_id === llmProvider.id)?.has_key;
+  const notSetUp = !!settings && !settings.onboarded;
+  const blocked = notSetUp || needsKey;
   const viewingIndex = st.viewing ?? answers.length - 1;
   const current: Answer | undefined = answers[viewingIndex];
-  const expanded = needsKey || answers.length > 0 || inputOpen || panel === "transcript";
+  const expanded = blocked || answers.length > 0 || inputOpen || panel === "transcript";
 
   // --- actions ------------------------------------------------------------------------------
   const report = useCallback((e: unknown) => {
@@ -123,8 +134,8 @@ export function Overlay() {
 
         {expanded && (
           <div className="border-t border-white/6">
-            {needsKey ? (
-              <Onboarding providerLabel={llmProvider?.label ?? "your provider"} />
+            {blocked ? (
+              <SetupPrompt notSetUp={notSetUp} providerLabel={llmProvider?.label ?? "Your provider"} />
             ) : panel === "transcript" ? (
               <Transcript />
             ) : current ? (
@@ -137,7 +148,7 @@ export function Overlay() {
             ) : (
               <EmptyHints />
             )}
-            {!needsKey && (inputOpen || answers.length > 0) && (
+            {!blocked && (inputOpen || answers.length > 0) && (
               <AskBox
                 inputRef={inputRef}
                 onSubmit={(q) => askNow(q)}
@@ -231,7 +242,7 @@ function Bar(props: {
       <div data-tauri-drag-region className="h-full flex-1" />
 
       {sourceError && (
-        <span className="text-amber-300" title={sourceError.message ?? "Audio problem"}>
+        <span className="text-amber-300" title={friendlyError(sourceError.message ?? "Audio problem").message}>
           <AlertTriangle size={15} />
         </span>
       )}
@@ -396,14 +407,10 @@ function AnswerView({
           <ThinkingDots />
         ) : null}
         {answer.status === "error" && (
-          <div className="selectable mt-1 rounded-lg border border-rose-400/25 bg-rose-400/8 px-3 py-2 text-[12.5px] text-rose-400">
-            {answer.error}
-            {/key/i.test(answer.error ?? "") && (
-              <button className="ml-2 underline" onClick={() => api.openSettings("providers")}>
-                Open settings
-              </button>
-            )}
-          </div>
+          <ErrorNote
+            className="mt-1 rounded-lg border border-rose-400/25 bg-rose-400/8 px-3 py-2"
+            f={friendlyError(answer.error ?? "Something went wrong.")}
+          />
         )}
         {answer.status === "cancelled" && <div className="mt-1 text-[11.5px] text-ink-400">Stopped.</div>}
       </div>
@@ -528,18 +535,18 @@ function Transcript() {
 function EmptyHints() {
   const hk = useOverlay((s) => s.settings?.hotkeys);
   if (!hk) return null;
-  const rows: [string, string][] = [
-    ["Answer what's happening now", hk.ask],
-    ["Start / stop listening", hk.toggle_listen],
-    ["Type a question", hk.focus_input],
-    ["Show / hide Fluke", hk.toggle_overlay],
-    ["Click-through mode", hk.click_through],
+  const steps: [string, string, string][] = [
+    ["Listen", "when the call starts", hk.toggle_listen],
+    ["Ask", "whenever you need an answer", hk.ask],
   ];
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 px-4 py-3">
-      {rows.map(([label, accel]) => (
-        <div key={label} className="flex items-center justify-between gap-3 text-[12px] text-ink-300">
-          <span>{label}</span>
+    <div className="flex items-center gap-6 px-4 py-3">
+      {steps.map(([verb, rest, accel], i) => (
+        <div key={verb} className="flex items-center gap-2.5 text-[12.5px]">
+          <span className="font-mono text-[10.5px] text-ink-400">0{i + 1}</span>
+          <span className="text-ink-300">
+            <span className="font-medium text-ink-100">{verb}</span> {rest}
+          </span>
           <Kbd accel={accel} />
         </div>
       ))}
@@ -547,22 +554,45 @@ function EmptyHints() {
   );
 }
 
-function Onboarding({ providerLabel }: { providerLabel: string }) {
+function SetupPrompt({ notSetUp, providerLabel }: { notSetUp: boolean; providerLabel: string }) {
+  const name = providerLabel.replace(/\s*\(.*\)\s*$/, "");
   return (
     <div className="flex items-center gap-3 px-4 py-3.5">
       <div className="flex-1">
-        <div className="text-[13px] font-medium text-ink-100">Add an API key to get started</div>
+        <div className="text-[13px] font-medium text-ink-100">
+          {notSetUp ? "Finish setting up Fluke" : `${name} needs an API key`}
+        </div>
         <div className="text-[12px] text-ink-400">
-          Fluke uses your own keys. The selected model needs a {providerLabel} key; pick any provider in
-          Settings.
+          {notSetUp
+            ? "Connect a model and a transcription service. It takes about two minutes."
+            : "Add it in Setup, or switch to another provider."}
         </div>
       </div>
       <button
-        onClick={() => api.openSettings("providers")}
+        onClick={() => api.openSettings(notSetUp ? "welcome" : "setup")}
         className="rounded-lg bg-lime-400 px-3 py-1.5 text-[12.5px] font-semibold text-ink-950 hover:bg-lime-500"
       >
-        Open settings
+        {notSetUp ? "Continue setup" : "Open Setup"}
       </button>
+    </div>
+  );
+}
+
+/** One plain sentence, the raw error on hover, and a shortcut to where it gets fixed. */
+function ErrorNote({ f, className, tone = "error" }: { f: Friendly; className?: string; tone?: "error" | "warn" }) {
+  return (
+    <div className={clsx("flex items-start gap-2 text-[12.5px]", tone === "warn" ? "text-amber-300" : "text-rose-400", className)}>
+      <span className="selectable flex-1" title={f.raw}>
+        {f.message}
+      </span>
+      {f.fix && (
+        <button
+          className="shrink-0 font-medium text-ink-100 underline-offset-2 hover:underline"
+          onClick={() => api.openSettings(f.fix!)}
+        >
+          Fix
+        </button>
+      )}
     </div>
   );
 }
@@ -580,7 +610,15 @@ function Toasts() {
             t.level === "error" ? "text-rose-400" : t.level === "warn" ? "text-amber-300" : "text-ink-200",
           )}
         >
-          <span className="selectable flex-1">{t.message}</span>
+          {t.level === "info" ? (
+            <span className="selectable flex-1">{t.message}</span>
+          ) : (
+            <ErrorNote
+              f={friendlyError(t.message)}
+              className="flex-1"
+              tone={t.level === "warn" ? "warn" : "error"}
+            />
+          )}
           <button onClick={() => dismissToast(t.id)} className="text-ink-400 hover:text-ink-100">
             <X size={13} />
           </button>

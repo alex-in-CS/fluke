@@ -51,6 +51,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let handle = app.handle().clone();
             let config_dir = app.path().app_config_dir()?;
@@ -65,6 +66,7 @@ pub fn run() {
                 .build()?;
 
             let hotkeys = settings.hotkeys.clone();
+            let onboarded = settings.onboarded;
             app.manage(AppState {
                 settings: RwLock::new(settings),
                 settings_path,
@@ -76,6 +78,11 @@ pub fn run() {
 
             window::setup_overlay(&handle)?;
             window::setup_tray(&handle)?;
+            // First launch: the setup flow comes first; the overlay appears when it's done.
+            if !onboarded {
+                window::hide_overlay(&handle);
+                window::open_settings(&handle, Some("welcome".into()))?;
+            }
             for problem in hotkeys::register(&handle, &hotkeys) {
                 tracing::warn!("hotkey not registered: {problem}");
                 state::toast(&handle, "warn", format!("Hotkey not registered: {problem}"));
@@ -87,6 +94,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
+            commands::finish_onboarding,
             commands::key_status,
             commands::set_api_key,
             commands::delete_api_key,

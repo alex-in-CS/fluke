@@ -54,8 +54,8 @@ export function ProvidersSection({ draft, update, keys, refreshKeys }: SectionPr
         title="Providers & keys"
         description={
           <>
-            Keys are written straight to your OS credential store (Windows Credential Manager / macOS
-            Keychain) and only ever read by Fluke's native core. They are never stored in the settings file
+            Keys are written straight to Windows Credential Manager and only ever read by Fluke's native
+            core. They are never stored in the settings file
             or shown back in full.
           </>
         }
@@ -84,7 +84,7 @@ export function ProvidersSection({ draft, update, keys, refreshKeys }: SectionPr
       </Button>
       <p className="mt-2 text-[12px] text-ink-400">
         For vLLM, LiteLLM, Together, Fireworks, Azure-style gateways or anything else that speaks the
-        OpenAI chat API. Save settings after editing a provider.
+        OpenAI chat API.
       </p>
     </>
   );

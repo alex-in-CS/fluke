@@ -83,7 +83,6 @@ export function AudioSection({ draft, update }: SectionProps) {
       </div>
       <ul className="mt-5 list-disc space-y-1 pl-5 text-[12.5px] leading-relaxed text-ink-400">
         <li>Wear headphones if you can. On speakers, your mic also picks up the other side.</li>
-        <li>macOS needs 14.6 or later for system audio, plus Screen &amp; System Audio Recording permission.</li>
         <li>Changes apply the next time you start listening.</li>
       </ul>
     </>

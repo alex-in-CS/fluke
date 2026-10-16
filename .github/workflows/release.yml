@@ -1,0 +1,41 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the Windows installers into a draft GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseName: Fluke ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
+          releaseBody: |
+            Windows 10/11 installers (`.exe` setup or `.msi`). Builds are not code-signed yet, so
+            SmartScreen may show "Unknown publisher": choose More info → Run anyway.
+          releaseDraft: true
+          prerelease: false
