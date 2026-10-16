@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { SceneState } from "./scene/state";
+import { SplitText } from "gsap/SplitText";
 
 type Pose = Pick<SceneState, "camX" | "camY" | "camZ" | "tgtX" | "tgtY" | "tgtZ" | "shiftX" | "shiftY" | "fov">;
 
@@ -25,6 +26,7 @@ const pose = (
 /** Camera poses per chapter. Copy on the left → subject shifted right (positive shiftX), and vice versa. */
 export const POSES = {
   hero: pose([1.1, 2.8, 9.6], [0.1, 1.45, -0.2], 0.22, 0.02),
+  overture: pose([0, 2.6, 13.5], [0, 1.3, 0], 0, -0.36, 28),
   listen: pose([-4.4, 2.3, 6.4], [-0.2, 1.35, 0.3], 0.2, 0),
   answer: pose([1.3, 2.9, 5.9], [0.05, 1.9, -0.4], -0.19, 0),
   see: pose([3.3, 2.4, 6.9], [0.1, 1.5, -0.5], 0.18, 0),
@@ -62,23 +64,65 @@ export function buildStory(s: SceneState) {
   const total = (document.documentElement.scrollHeight - vh) / vh;
   const tl = gsap.timeline({ paused: true, defaults: { ease: "none" } });
   tl.set({}, {}, total); // fix the timeline length to the scroll length
+  // Line splits depend on the layout, so they are rebuilt with the story on resize.
+  const splits: SplitText[] = [];
 
   const fly = (p: Pose, at: number, dur = 0.85, extra: gsap.TweenVars = {}) =>
     tl.to(s, { ...p, ...extra, duration: dur, ease: "power2.inOut" }, at);
   const to = (vars: gsap.TweenVars, at: number, dur: number, ease = "power1.inOut") =>
     tl.to(s, { ...vars, duration: dur, ease }, at);
 
+  /**
+   * Chapter copy arrives as masked lines: the eyebrow wipes open, headline lines rise out of their
+   * masks, body lines follow a beat later, then everything lifts away together.
+   */
   const copyIn = (sec: Section, target: Element | Element[]) => {
     const kids = Array.isArray(target) ? target : Array.from((target as HTMLElement).children);
-    tl.fromTo(
-      kids,
-      { autoAlpha: 0, y: 48 },
-      { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.05, ease: "power2.out" },
-      sec.top - 0.5,
-    );
-    tl.to(kids, { autoAlpha: 0, y: -40, duration: 0.35, stagger: 0.03, ease: "power1.in" }, sec.top + sec.len - 1 + 0.05);
+    const at = sec.top - 0.5;
+    const rest: Element[] = [];
+    const lines = (el: Element) => {
+      const sp = new SplitText(el, { type: "lines", mask: "lines", linesClass: "line" });
+      splits.push(sp);
+      return sp.lines;
+    };
+    for (const k of kids) {
+      if (k.matches(".eyebrow")) {
+        tl.fromTo(
+          k,
+          { autoAlpha: 1, clipPath: "inset(0% 100% 0% 0%)" },
+          { clipPath: "inset(0% 0% 0% 0%)", duration: 0.45, ease: "power3.inOut" },
+          at - 0.04,
+        );
+      } else if (k.matches("h2")) {
+        tl.fromTo(
+          lines(k),
+          { yPercent: 112, rotate: 2.5 },
+          { yPercent: 0, rotate: 0, duration: 0.55, stagger: 0.08, ease: "expo.out", transformOrigin: "0% 100%" },
+          at,
+        );
+      } else if (k.matches("p:not(.small)")) {
+        tl.fromTo(
+          lines(k),
+          { yPercent: 105, autoAlpha: 0 },
+          { yPercent: 0, autoAlpha: 1, duration: 0.5, stagger: 0.035, ease: "expo.out" },
+          at + 0.14,
+        );
+      } else {
+        rest.push(k);
+      }
+    }
+    if (rest.length) {
+      tl.fromTo(
+        rest,
+        { autoAlpha: 0, y: 28 },
+        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.05, ease: "expo.out" },
+        at + 0.22,
+      );
+    }
+    tl.to(kids, { autoAlpha: 0, y: -36, duration: 0.35, stagger: 0.025, ease: "power2.in" }, sec.top + sec.len - 1 + 0.05);
   };
 
+  const O = measure("overture");
   const L = measure("listen");
   const A = measure("answer");
   const S = measure("see");
@@ -92,6 +136,19 @@ export function buildStory(s: SceneState) {
 
   // Hero copy drifts up and fades as you leave the hero.
   tl.to(".hero__copy", { autoAlpha: 0, y: -80, duration: 0.6, ease: "power1.in" }, 0.15);
+
+  // Overture: the camera settles back and low; one statement lights up word by word while
+  // both streams play, Them then You.
+  fly(POSES.overture, O.top - 0.85, 1.0);
+  to({ ribbons: 0.85 }, O.top - 0.6, 0.6);
+  tl.set(s, { speaker: 1 }, O.top - 0.2);
+  tl.set(s, { speaker: 2 }, O.top + hold(O) * 0.45);
+  const statement = O.el.querySelector(".overture__text")!;
+  const sw = new SplitText(statement, { type: "words", wordsClass: "ow" });
+  splits.push(sw);
+  tl.fromTo(statement, { autoAlpha: 0, y: 40 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "expo.out" }, O.top - 0.55);
+  tl.fromTo(sw.words, { opacity: 0.14 }, { opacity: 1, duration: 0.12, stagger: (hold(O) * 0.85) / sw.words.length, ease: "none" }, O.top - 0.25);
+  tl.to(statement, { autoAlpha: 0, y: -48, duration: 0.4, ease: "power2.in" }, O.top + O.len - 1 + 0.05);
 
   // 01 Listen: streams intensify, panel opens on a live transcript, Them then You.
   fly(POSES.listen, L.top - 0.85);
@@ -166,9 +223,15 @@ export function buildStory(s: SceneState) {
   fly(POSES.finale, F.top - 0.9, 1.1);
   to({ ribbons: 0.35, speaker: 1 }, F.top - 0.5, 0.4);
 
-  const st = ScrollTrigger.create({ start: 0, end: "max", scrub: 0.9, animation: tl });
+  const st = ScrollTrigger.create({
+    start: 0,
+    end: "max",
+    scrub: 1.1,
+    animation: tl,
+  });
   return () => {
     st.kill();
     tl.kill();
+    splits.forEach((sp) => sp.revert());
   };
 }

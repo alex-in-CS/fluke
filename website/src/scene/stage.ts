@@ -1,12 +1,15 @@
 import * as THREE from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { Laptop, SCREEN_W } from "./laptop";
 import { BAR_H, BAR_W, Overlay, PANEL_H } from "./overlay";
 import { Dome, Dust, KeyLock, MemoryCards, ProviderRing, Ribbons, Scan, makeFloor } from "./fx";
+import { Fluid, FluidShader } from "./fluid";
+import { TextLayer, TextShader } from "./textlayer";
+import { makeStudio } from "./studio";
 import type { SceneState } from "./state";
 import { clamp01, lerp, smooth } from "./util";
 
@@ -28,6 +31,10 @@ export class Stage {
   readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 120);
   private composer: EffectComposer | null = null;
   private bloom: UnrealBloomPass | null = null;
+  private fluidPass: ShaderPass | null = null;
+  private fluid: Fluid | null = null;
+  private textPass: ShaderPass | null = null;
+  private readonly text = new TextLayer();
   private quality: Quality;
   private readonly laptop: Laptop;
   private readonly overlay = new Overlay();
@@ -37,6 +44,12 @@ export class Stage {
   private readonly ring = new ProviderRing();
   private readonly keylock = new KeyLock();
   private readonly dome = new Dome();
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly plane = new THREE.Plane();
+  /** Pointer in world space (xyz) and how hard it parts the dust (w). */
+  private readonly field = new THREE.Vector4();
+  private readonly fieldTarget = new THREE.Vector3();
+  private pointerSeen = 0;
   private readonly scan: Scan;
   private readonly capture: THREE.Mesh;
   private readonly captureFrom = new THREE.Object3D();
@@ -69,8 +82,9 @@ export class Stage {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.42;
+    // A product-photography studio lives only in reflections: softbox, strip lights, brand rims.
+    this.scene.environment = pmrem.fromScene(makeStudio(), 0.015).texture;
+    this.scene.environmentIntensity = 0.62;
     pmrem.dispose();
     // Explicit background (see applyQuality for why the value differs per pipeline).
     this.scene.background = new THREE.Color();
@@ -124,19 +138,52 @@ export class Stage {
     this.overlay.group.add(this.captureTo);
     this.memorySink.copy(OVERLAY_POS).add(new THREE.Vector3(0, -0.6, 0.05));
 
+    if (!opts.still) {
+      try {
+        this.fluid = new Fluid(this.renderer, opts.mobile ? { simRes: 96, dyeRes: 384 } : { simRes: 128, dyeRes: 768 });
+      } catch (err) {
+        console.warn("Fluid simulation unavailable.", err);
+      }
+    }
+
     this.applyQuality();
     this.resize();
     window.addEventListener("resize", () => this.resize());
     if (!opts.mobile) {
       window.addEventListener("pointermove", (e) => {
         this.pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+        this.pointerSeen = performance.now();
       });
+      document.addEventListener("pointerleave", () => (this.pointerSeen = 0));
     }
+  }
+
+  /** Headline words to lift into the frame, so the fluid can bend them too. */
+  liquidType(words: Element[]) {
+    this.text.track(words);
+  }
+
+  /** Feeds the page's scroll speed (px/s, positive = down) into the fluid. */
+  stir(pxPerSec: number) {
+    this.fluid?.stir(pxPerSec);
+  }
+
+  /** Keys currently held on the visitor's keyboard, by keycap label. */
+  get pressed() {
+    return this.laptop.pressed;
+  }
+
+  /** Projects a pointer position (x right, y down, both -1..1) onto a plane through the camera target. */
+  private pointerWorld(p: THREE.Vector2, out: THREE.Vector3) {
+    this.raycaster.setFromCamera(new THREE.Vector2(p.x, -p.y), this.camera);
+    const n = this.camera.getWorldDirection(new THREE.Vector3());
+    this.plane.setFromNormalAndCoplanarPoint(n, this.tmpTgt);
+    return this.raycaster.ray.intersectPlane(this.plane, out) ?? out.copy(this.tmpTgt);
   }
 
   private applyQuality() {
     const dpr = window.devicePixelRatio || 1;
-    const cap = this.quality === 2 ? 1.75 : this.quality === 1 ? 1.25 : 1;
+    const cap = this.quality === 2 ? 2 : this.quality === 1 ? 1.25 : 1;
     this.renderer.setPixelRatio(Math.min(dpr, cap));
     const fine = this.quality === 2;
     this.overlay.setFineGlass(fine);
@@ -152,6 +199,8 @@ export class Stage {
     this.composer?.dispose();
     this.composer = null;
     this.bloom = null;
+    this.fluidPass = null;
+    this.textPass = null;
     if (this.quality >= 1) {
       const rt = new THREE.WebGLRenderTarget(1, 1, {
         type: THREE.HalfFloatType,
@@ -161,8 +210,19 @@ export class Stage {
       this.composer.addPass(new RenderPass(this.scene, this.camera));
       this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.65, 0.9);
       this.composer.addPass(this.bloom);
+      if (this.fluid) {
+        this.fluidPass = new ShaderPass(FluidShader);
+        this.composer.addPass(this.fluidPass);
+      }
       this.composer.addPass(new OutputPass());
+      if (this.fluid) {
+        this.textPass = new ShaderPass(TextShader);
+        this.textPass.uniforms.uText.value = this.text.texture;
+        this.composer.addPass(this.textPass);
+      }
     }
+    // Without the fluid pipeline the DOM headlines simply show themselves again.
+    document.documentElement.classList.toggle("liquid-type", !!this.textPass);
     this.resize();
   }
 
@@ -176,6 +236,9 @@ export class Stage {
       this.bloom?.resolution.set(this.width / 2, this.height / 2);
     }
     this.camera.aspect = this.width / this.height;
+    this.fluid?.resize(this.width, this.height);
+    this.text.resize(this.width, this.height);
+    this.text.restyle();
     if (this.opts.still) this.render(0, performance.now() / 1000);
   }
 
@@ -224,12 +287,34 @@ export class Stage {
 
   render(dt: number, time: number) {
     const s = this.state;
-    this.laptop.update(time, s.speaker, s.share, s.hotkey);
-    this.overlay.group.position.y = OVERLAY_POS.y + Math.sin(time * 0.9) * 0.025;
-    this.overlay.group.scale.setScalar(lerp(0.85, 1, smooth(s.reveal)));
+    // A live voice puts the You tile on screen into its speaking state.
+    const speaker = s.voice > 0.14 && s.share < 0.5 ? 2 : s.speaker;
+    this.laptop.update(time, speaker, s.share, s.hotkey);
+    this.laptop.setPower(s.lid, s.power);
+    // The overlay surfaces from the screen once it has powered on.
+    const p = smooth(s.power);
+    this.overlay.group.visible = p > 0.01;
+    this.overlay.group.position.y = OVERLAY_POS.y - 0.35 * (1 - p) + Math.sin(time * 0.9) * 0.025;
+    this.overlay.group.scale.setScalar(lerp(0.75, 1, p));
     this.overlay.update(s, time);
-    this.ribbons.update(dt, time, clamp01(s.ribbons), s.speaker);
-    this.dust.update(time);
+    this.ribbons.update(dt, time, clamp01(s.ribbons) * p, speaker, s.voice);
+    // The dust parts around the pointer while it moves and settles back when it rests.
+    const active = this.pointerSeen > 0 && performance.now() - this.pointerSeen < 1600 ? 1 : 0;
+    this.field.w += (active - this.field.w) * (1 - Math.exp(-dt * 3));
+    if (active) {
+      this.pointerWorld(this.pointerSmooth, this.fieldTarget);
+      this.field.set(this.fieldTarget.x, this.fieldTarget.y, this.fieldTarget.z, this.field.w);
+    }
+    this.dust.update(time, dt, this.field);
+    if (this.fluid && this.fluidPass) {
+      this.fluid.step(dt);
+      this.fluidPass.uniforms.uVelocity.value = this.fluid.velocityTexture;
+      this.fluidPass.uniforms.uDye.value = this.fluid.dyeTexture;
+    }
+    if (this.textPass && this.fluid) {
+      this.text.update();
+      this.textPass.uniforms.uVelocity.value = this.fluid.velocityTexture;
+    }
     this.memory.update(s.memory, this.memorySink, time);
     this.ring.update(s.ring, s.spin);
     this.keylock.update(s.ring, s.keyIn, time);

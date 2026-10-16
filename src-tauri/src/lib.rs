@@ -8,6 +8,7 @@ mod hotkeys;
 mod llm;
 mod memory;
 mod prompt;
+mod screen;
 mod secrets;
 mod session;
 mod state;
@@ -62,6 +63,10 @@ pub fn run() {
             let db = Db::open(&data_dir.join("fluke.db"))?;
             let http = reqwest::Client::builder()
                 .connect_timeout(Duration::from_secs(10))
+                // Keep the provider connection warm between answers (no new TLS handshake).
+                .pool_idle_timeout(Duration::from_secs(600))
+                .http2_keep_alive_interval(Duration::from_secs(20))
+                .http2_keep_alive_while_idle(true)
                 .user_agent(concat!("Fluke/", env!("CARGO_PKG_VERSION")))
                 .build()?;
 
@@ -74,6 +79,7 @@ pub fn run() {
                 http,
                 session: Mutex::new(SessionState::new()),
                 click_through: AtomicBool::new(false),
+                mic: Default::default(),
             });
 
             window::setup_overlay(&handle)?;
@@ -115,6 +121,8 @@ pub fn run() {
             commands::open_settings,
             commands::hide_overlay,
             commands::set_click_through,
+            commands::set_session_notes,
+            commands::set_mic,
             commands::quit,
             commands::list_context_docs,
             commands::add_context_files,

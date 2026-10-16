@@ -22,7 +22,9 @@ pub fn register(app: &AppHandle, hotkeys: &Hotkeys) -> Vec<String> {
             continue;
         }
         let res = gs.on_shortcut(accel, move |app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
+            if action == "push_to_talk" {
+                session::hold_mic(app, event.state == ShortcutState::Pressed);
+            } else if event.state == ShortcutState::Pressed {
                 handle(app, action);
             }
         });

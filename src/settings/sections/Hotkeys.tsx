@@ -11,6 +11,7 @@ import { Button, Card, SectionHeader } from "../ui";
 const ROWS: [keyof Hotkeys, string][] = [
   ["ask", "Answer what's happening now"],
   ["toggle_listen", "Start / stop listening"],
+  ["push_to_talk", "Hold to include your voice"],
   ["focus_input", "Type a question"],
   ["toggle_overlay", "Show / hide Fluke"],
   ["click_through", "Toggle click-through"],
@@ -26,6 +27,7 @@ const DEFAULTS: Hotkeys = {
   toggle_listen: "CommandOrControl+Shift+L",
   focus_input: "CommandOrControl+Shift+K",
   click_through: "CommandOrControl+Shift+X",
+  push_to_talk: "CommandOrControl+Shift+M",
   move_up: "CommandOrControl+Shift+Up",
   move_down: "CommandOrControl+Shift+Down",
   move_left: "CommandOrControl+Shift+Left",
@@ -61,7 +63,7 @@ export function HotkeysSection({ draft, update }: SectionProps) {
   return (
     <>
       <SectionHeader
-        title="Hotkeys"
+        title="Shortcuts"
         description="Global shortcuts work from any app, so you never have to click away from the call. Click a shortcut, then press the new combination (Backspace clears it, Esc cancels)."
       />
       <Card className="divide-y divide-white/5 p-0">

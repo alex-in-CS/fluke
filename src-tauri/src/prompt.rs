@@ -6,11 +6,15 @@ use crate::storage::{AnswerRecord, ContextDoc, Memory, Segment, Speaker, memory_
 const BASE_SYSTEM: &str = "\
 You are Fluke, a real-time assistant that helps the user during live conversations: calls, \
 meetings, interviews, demos. You receive a rolling transcript where \"Them\" is the other \
-participants (system audio) and \"Me\" is the user (microphone). Speech-to-text can mishear \
-words; infer the intended meaning. Sometimes you also get a screenshot of the user's screen.
+participants (system audio) and \"Me\" is the user (microphone; often off, so the user's side \
+may be missing). Speech-to-text can mishear words; infer the intended meaning. You may also get \
+the text currently on the user's screen (read by OCR, so it can include menus and other UI \
+noise) and sometimes a screenshot.
 
+Speed matters: the user reads your answer while the other person waits.
 How to respond:
-- Lead with what the user can say or do right now. No preamble, no restating the question.
+- First line: the answer itself, in one or two sentences the user can say out loud. Bold it. \
+No preamble, no restating the question.
 - Write in the user's voice (first person) when giving something to say out loud.
 - Keep it scannable: a short direct answer first, then a few tight bullets only if they add value.
 - If the screen shows code, a problem, a document or a form, work from it directly. For code, \
@@ -74,16 +78,42 @@ pub enum Trigger {
     Assist,
     /// Auto-detected question from the other side.
     Detected(String),
+    /// A question that just appeared on the user's screen.
+    OnScreen(String),
+    /// The screen content changed substantially (new slide, page, document).
+    ScreenChange,
 }
 
 impl Trigger {
     /// Short label stored with the answer and shown in the UI.
     pub fn label(&self) -> String {
         match self {
-            Trigger::Typed(q) | Trigger::Detected(q) => q.clone(),
+            Trigger::Typed(q) | Trigger::Detected(q) | Trigger::OnScreen(q) => q.clone(),
             Trigger::Assist => "What should I say?".into(),
+            Trigger::ScreenChange => "New on screen".into(),
         }
     }
+
+    /// Where the answer came from, for the UI tag.
+    pub fn source(&self) -> &'static str {
+        match self {
+            Trigger::Typed(_) => "typed",
+            Trigger::Assist => "assist",
+            Trigger::Detected(_) => "heard",
+            Trigger::OnScreen(_) | Trigger::ScreenChange => "screen",
+        }
+    }
+}
+
+/// Volatile context that changes during the meeting, so it rides in the user turn.
+#[derive(Default)]
+pub struct Live<'a> {
+    /// Notes the user typed for this meeting.
+    pub notes: &'a str,
+    /// Text read from the screen a moment ago.
+    pub screen_text: Option<&'a str>,
+    /// A screenshot is attached to this turn.
+    pub has_screenshot: bool,
 }
 
 /// Builds the user turn: transcript, recent answers, then the actual request.
@@ -93,7 +123,7 @@ pub fn user_turn(
     now_ms: i64,
     previous: &[AnswerRecord],
     trigger: &Trigger,
-    has_screen: bool,
+    live: &Live,
 ) -> String {
     const MAX_TRANSCRIPT_CHARS: usize = 24_000;
 
@@ -142,7 +172,18 @@ pub fn user_turn(
         out.push_str("</your_previous_answers>\n\n");
     }
 
-    let screen = if has_screen {
+    if !live.notes.trim().is_empty() {
+        out.push_str("<my_notes_for_this_meeting>\n");
+        out.push_str(live.notes.trim());
+        out.push_str("\n</my_notes_for_this_meeting>\n\n");
+    }
+    if let Some(text) = live.screen_text.filter(|t| !t.trim().is_empty()) {
+        out.push_str("<my_screen_text>\n");
+        out.push_str(text.trim());
+        out.push_str("\n</my_screen_text>\n\n");
+    }
+
+    let screen = if live.has_screenshot {
         " The attached screenshot is my screen right now."
     } else {
         ""
@@ -152,10 +193,18 @@ pub fn user_turn(
         Trigger::Detected(q) => out.push_str(&format!(
             "They just asked: \"{q}\"\nGive me the answer to say.{screen}"
         )),
+        Trigger::OnScreen(q) => out.push_str(&format!(
+            "This question just appeared on my screen: \"{q}\"\nGive me the answer.{screen}"
+        )),
+        Trigger::ScreenChange => out.push_str(
+            "My screen just changed to what's in <my_screen_text>. Brief me fast: the one thing \
+             that matters most here, then at most three bullets on what I might be asked about \
+             it or should say.",
+        ),
         Trigger::Assist => out.push_str(&format!(
             "Help me with what's happening right now. If there's an open question in the \
-             conversation, answer it. Otherwise, help with what's on my screen or suggest what \
-             I should say next.{screen}"
+             conversation or on my screen, answer it. Otherwise, help with what's on my screen \
+             or suggest what I should say next.{screen}"
         )),
     }
     out
@@ -303,10 +352,16 @@ mod tests {
             70_000,
             &[],
             &Trigger::Typed("Summarize".into()),
-            true,
+            &Live {
+                notes: "Budget is 10k",
+                screen_text: Some("Q3 roadmap"),
+                has_screenshot: true,
+            },
         );
         assert!(t.contains("[00:00] Them: Hi there"));
         assert!(t.contains("[01:04] Me: Hello"));
+        assert!(t.contains("<my_notes_for_this_meeting>\nBudget is 10k\n"));
+        assert!(t.contains("<my_screen_text>\nQ3 roadmap\n"));
         assert!(t.ends_with("Summarize The attached screenshot is my screen right now."));
     }
 
@@ -366,7 +421,7 @@ mod tests {
                 ts: 590_000,
             },
         ];
-        let t = user_turn(&segs, 60_000, 600_000, &[], &Trigger::Assist, false);
+        let t = user_turn(&segs, 60_000, 600_000, &[], &Trigger::Assist, &Live::default());
         assert!(!t.contains("old"));
         assert!(t.contains("new"));
     }

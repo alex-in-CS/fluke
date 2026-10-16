@@ -42,6 +42,11 @@ export interface SceneState {
   hotkey: number;
   /** Bar "Ask" highlight. */
   ask: number;
+  /** Intro: lid closed (0) to open (1), then the screen and backlight power on (0 to 1). */
+  lid: number;
+  power: number;
+  /** Live microphone level from "Try it with your voice", 0 silent to 1 loud. */
+  voice: number;
 }
 
 export function createState(): SceneState {
@@ -71,5 +76,8 @@ export function createState(): SceneState {
     shield: 0,
     hotkey: -1,
     ask: 0,
+    lid: 0,
+    power: 0,
+    voice: 0,
   };
 }

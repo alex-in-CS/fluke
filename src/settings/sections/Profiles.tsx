@@ -4,17 +4,11 @@ import { BrainCircuit, Copy, FilePlus2, FileText, Plus, RefreshCw, Trash2 } from
 import clsx from "clsx";
 
 import { api, errorText } from "../../lib/api";
+import { FILE_FILTERS } from "../../lib/files";
 import type { ContextDoc, Profile } from "../../lib/types";
 import type { SectionProps } from "../SettingsApp";
 import { Badge, Button, Card, Field, SectionHeader, Select, TextArea, TextInput, Toggle } from "../ui";
 
-const FILE_FILTERS = [
-  {
-    name: "Documents",
-    extensions: ["md", "txt", "pdf", "docx", "csv", "json", "markdown", "log", "yaml", "yml", "html"],
-  },
-  { name: "All files", extensions: ["*"] },
-];
 
 const tokens = (chars: number) => Math.round(chars / 4);
 

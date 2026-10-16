@@ -22,6 +22,24 @@ export function BehaviorSection({ draft, update }: SectionProps) {
           description="When the other side asks you something, Fluke drafts an answer as soon as they stop talking."
         />
         <Toggle
+          checked={b.watch_screen}
+          onChange={(v) => update((d) => void (d.behavior.watch_screen = v))}
+          label="Watch my screen while listening"
+          description="Reads the text on your screen with Windows' built-in text recognition (on your PC, nothing uploaded) and answers questions as they appear."
+        />
+        <Toggle
+          checked={b.screen_commentary}
+          onChange={(v) => update((d) => void (d.behavior.screen_commentary = v))}
+          label="Brief me when the screen changes"
+          description="A new slide, page or document gets a two-line rundown: what matters and what you might be asked. At most every 20 seconds."
+        />
+        <Toggle
+          checked={b.mic_default_on}
+          onChange={(v) => update((d) => void (d.behavior.mic_default_on = v))}
+          label="Include my voice from the start"
+          description="Off: only the other side is transcribed, and your voice is added only while you hold the talk shortcut or turn the mic on. Saves transcription usage."
+        />
+        <Toggle
           checked={b.screen_on_ask}
           onChange={(v) => update((d) => void (d.behavior.screen_on_ask = v))}
           label="Include a screenshot when you press Ask"

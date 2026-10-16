@@ -20,6 +20,7 @@ pub struct Snapshot {
     pub started_at: i64,
     pub segments: Vec<Segment>,
     pub answers: Vec<AnswerRecord>,
+    pub notes: String,
 }
 
 #[derive(Serialize)]
@@ -191,7 +192,27 @@ pub fn get_snapshot(app: AppHandle) -> Snapshot {
         started_at: s.started_at,
         segments: s.segments.clone(),
         answers: s.answers.clone(),
+        notes: s.notes.clone(),
     }
+}
+
+/// Quick notes for the current meeting, typed into the overlay. Sent with every answer.
+#[tauri::command]
+pub fn set_session_notes(app: AppHandle, notes: String) -> Result<()> {
+    let st = app.state::<AppState>();
+    let id = {
+        let mut s = st.session.lock();
+        s.notes = notes.clone();
+        s.id.clone()
+    };
+    session::persist_session_start(&app);
+    st.db.lock().set_notes(&id, &notes)
+}
+
+/// The overlay's mic button.
+#[tauri::command]
+pub fn set_mic(app: AppHandle, on: bool) {
+    session::set_mic(&app, on);
 }
 
 #[tauri::command]

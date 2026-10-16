@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   AlertTriangle,
   Captions,
@@ -7,11 +8,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   EyeOff,
+  FileText,
   Keyboard,
   Mic,
+  MicOff,
   MonitorUp,
   MousePointerClick,
+  NotebookPen,
+  Paperclip,
   RotateCcw,
   Send,
   Settings as SettingsIcon,
@@ -24,6 +30,8 @@ import clsx from "clsx";
 import { api, errorText, events, subscribeAll } from "../lib/api";
 import { friendlyError, type Friendly } from "../lib/friendly";
 import { keyParts } from "../lib/hotkeys";
+import { FILE_FILTERS } from "../lib/files";
+import type { ContextDoc } from "../lib/types";
 import { useOverlay, type Answer } from "./store";
 import { Markdown } from "../components/Markdown";
 import { Kbd } from "../components/Kbd";
@@ -97,7 +105,7 @@ export function Overlay() {
   const blocked = notSetUp || needsKey;
   const viewingIndex = st.viewing ?? answers.length - 1;
   const current: Answer | undefined = answers[viewingIndex];
-  const expanded = blocked || answers.length > 0 || inputOpen || panel === "transcript";
+  const expanded = blocked || answers.length > 0 || inputOpen || panel !== "answer";
 
   // --- actions ------------------------------------------------------------------------------
   const report = useCallback((e: unknown) => {
@@ -138,6 +146,8 @@ export function Overlay() {
               <SetupPrompt notSetUp={notSetUp} providerLabel={llmProvider?.label ?? "Your provider"} />
             ) : panel === "transcript" ? (
               <Transcript />
+            ) : panel === "context" ? (
+              <ContextPanel />
             ) : current ? (
               <AnswerView
                 answer={current}
@@ -201,10 +211,7 @@ function Bar(props: {
           <>
             <span className="live-dot h-2 w-2 rounded-full bg-rose-400" />
             <span>{connecting ? "Connecting" : "Live"}</span>
-            <span className="ml-0.5 flex items-center gap-1.5">
-              <LevelMeter level={levels.me} color="var(--color-lime-400)" label="You" />
-              <LevelMeter level={levels.them} color="var(--color-sky-300)" label="Them" />
-            </span>
+            <LevelMeter level={levels.them} color="var(--color-sky-300)" label="Them" />
           </>
         ) : (
           <>
@@ -213,6 +220,30 @@ function Bar(props: {
           </>
         )}
       </button>
+
+      {listening && settings?.behavior.capture_mic && (
+        <button
+          onClick={() => api.setMic(!status?.mic_open)}
+          className={clsx(
+            "flex h-8 items-center gap-1.5 rounded-lg px-2 transition",
+            status?.mic_open ? "bg-lime-400/14 text-lime-400" : "text-ink-400 hover:bg-white/8 hover:text-ink-100",
+          )}
+          title={
+            status?.mic_open
+              ? "Your voice is being transcribed. Click to turn it off."
+              : `Only the other side is transcribed. Hold ${hk ? keyParts(hk.push_to_talk).join(" + ") : "the talk shortcut"} to talk, or click to keep your mic on.`
+          }
+        >
+          {status?.mic_open ? (
+            <>
+              <Mic size={14} />
+              <LevelMeter level={levels.me} color="var(--color-lime-400)" label="You" />
+            </>
+          ) : (
+            <MicOff size={14} />
+          )}
+        </button>
+      )}
 
       <button
         onClick={props.onAsk}
@@ -238,8 +269,21 @@ function Bar(props: {
       >
         <Captions size={15} />
       </IconButton>
+      <IconButton
+        active={panel === "context"}
+        onClick={() => setPanel(panel === "context" ? "answer" : "context")}
+        title="Context for this meeting: notes, files, profile"
+      >
+        <NotebookPen size={15} />
+      </IconButton>
 
       <div data-tauri-drag-region className="h-full flex-1" />
+
+      {status?.watching && (
+        <span className="text-sky-300" title="Watching your screen for questions and new content">
+          <Eye size={15} />
+        </span>
+      )}
 
       {sourceError && (
         <span className="text-amber-300" title={friendlyError(sourceError.message ?? "Audio problem").message}>
@@ -335,15 +379,25 @@ function AnswerView({
       <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-            {answer.auto && (
+            {answer.source === "heard" && (
               <span className="rounded bg-sky-300/12 px-1.5 py-px font-medium text-sky-300">heard</span>
+            )}
+            {answer.source === "screen" && (
+              <span className="flex items-center gap-1 rounded bg-sky-300/12 px-1.5 py-px font-medium text-sky-300">
+                <Eye size={10} /> on screen
+              </span>
             )}
             {answer.withScreen && (
               <span className="flex items-center gap-1 rounded bg-white/6 px-1.5 py-px">
-                <MonitorUp size={10} /> screen
+                <MonitorUp size={10} /> screenshot
               </span>
             )}
             <span className="truncate">{answer.model}</span>
+            {answer.firstTokenMs != null && (
+              <span className="tabular-nums text-ink-300" title="Time to the first words">
+                {(answer.firstTokenMs / 1000).toFixed(1)}s
+              </span>
+            )}
           </div>
           <div className="truncate text-[12.5px] font-medium text-ink-200" title={answer.question}>
             {answer.question}
@@ -536,13 +590,14 @@ function EmptyHints() {
   const hk = useOverlay((s) => s.settings?.hotkeys);
   if (!hk) return null;
   const steps: [string, string, string][] = [
-    ["Listen", "when the call starts", hk.toggle_listen],
-    ["Ask", "whenever you need an answer", hk.ask],
+    ["Listen", "to the call and screen", hk.toggle_listen],
+    ["Ask", "anytime", hk.ask],
+    ["Hold", "to add your voice", hk.push_to_talk],
   ];
   return (
-    <div className="flex items-center gap-6 px-4 py-3">
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
       {steps.map(([verb, rest, accel], i) => (
-        <div key={verb} className="flex items-center gap-2.5 text-[12.5px]">
+        <div key={verb} className="flex items-center gap-2 text-[12.5px]">
           <span className="font-mono text-[10.5px] text-ink-400">0{i + 1}</span>
           <span className="text-ink-300">
             <span className="font-medium text-ink-100">{verb}</span> {rest}
@@ -550,6 +605,104 @@ function EmptyHints() {
           <Kbd accel={accel} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Quick context without leaving the call: notes for this meeting, files, and the profile. */
+function ContextPanel() {
+  const { settings, notes, setNotes, pushToast } = useOverlay();
+  const [docs, setDocs] = useState<ContextDoc[]>([]);
+  const [busy, setBusy] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const profileId = settings?.active_profile ?? "";
+
+  const loadDocs = useCallback(() => {
+    if (profileId) api.listContextDocs(profileId).then(setDocs).catch(() => {});
+  }, [profileId]);
+  useEffect(loadDocs, [loadDocs]);
+
+  const onNotes = (v: string) => {
+    setNotes(v);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      api.setSessionNotes(v).catch((e) => pushToast({ level: "error", message: errorText(e) }));
+    }, 400);
+  };
+
+  const addFiles = async () => {
+    const picked = await open({ multiple: true, directory: false, filters: FILE_FILTERS });
+    const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
+    if (!paths.length || !profileId) return;
+    setBusy(true);
+    try {
+      const res = await api.addContextFiles(profileId, paths);
+      res.errors.forEach((message) => pushToast({ level: "warn", message }));
+    } catch (e) {
+      pushToast({ level: "error", message: errorText(e) });
+    } finally {
+      setBusy(false);
+      loadDocs();
+    }
+  };
+
+  const switchProfile = async (id: string) => {
+    if (!settings) return;
+    try {
+      await api.saveSettings({ ...settings, active_profile: id });
+    } catch (e) {
+      pushToast({ level: "error", message: errorText(e) });
+    }
+  };
+
+  return (
+    <div className="space-y-3 px-3.5 py-3">
+      <textarea
+        value={notes}
+        onChange={(e) => onNotes(e.target.value)}
+        rows={4}
+        placeholder="Notes for this meeting: who's here, the agenda, numbers, what you want to get across…"
+        className="selectable w-full resize-none rounded-lg border border-white/8 bg-black/25 px-3 py-2 text-[12.5px] leading-relaxed text-ink-100 placeholder:text-ink-600 outline-none focus:border-lime-400/40"
+      />
+      <div className="flex items-center gap-2">
+        <select
+          value={profileId}
+          onChange={(e) => switchProfile(e.target.value)}
+          className="h-7 rounded-md border border-white/8 bg-black/25 px-2 text-[12px] text-ink-200 outline-none"
+          title="Profile: standing instructions, files and meeting memory"
+        >
+          {settings?.profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+          {docs.map((d) => (
+            <span
+              key={d.id}
+              className="flex shrink-0 items-center gap-1 rounded-md bg-white/6 py-0.5 pr-1 pl-1.5 text-[11.5px] text-ink-300"
+            >
+              <FileText size={11} />
+              <span className="max-w-36 truncate">{d.name}</span>
+              <button
+                onClick={() => api.removeContextDoc(d.id).then(loadDocs)}
+                className="rounded p-0.5 text-ink-400 hover:text-rose-400"
+                title="Remove"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <button
+          onClick={addFiles}
+          disabled={busy}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[12px] text-ink-300 hover:bg-white/8 hover:text-ink-100 disabled:opacity-50"
+        >
+          <Paperclip size={12} /> {busy ? "Adding…" : "Add files"}
+        </button>
+      </div>
     </div>
   );
 }

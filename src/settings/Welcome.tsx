@@ -28,7 +28,7 @@ const STEPS = [
     title: "Check",
     blurb: "A ten-second test",
     heading: "Make sure it hears you.",
-    sub: "Start the test and say a few words. Then play any video with sound so Fluke can hear the other side.",
+    sub: "Start the test and play any video with sound: that's the other side. Your own voice is only transcribed while you hold the talk shortcut, so try that too.",
   },
 ] as const;
 
@@ -133,7 +133,13 @@ export function Welcome({ flush, ...props }: SectionProps & { flush: () => Promi
             <div className="mt-9">
               {step === 0 && <EnginePicker role="llm" {...props} onStatus={onLlm} />}
               {step === 1 && <EnginePicker role="stt" {...props} onStatus={onStt} />}
-              {step === 2 && <LiveCheck flush={flush} hotkey={props.draft.hotkeys.toggle_overlay} />}
+              {step === 2 && (
+                <LiveCheck
+                  flush={flush}
+                  hotkey={props.draft.hotkeys.toggle_overlay}
+                  talk={props.draft.hotkeys.push_to_talk}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -166,7 +172,7 @@ export function Welcome({ flush, ...props }: SectionProps & { flush: () => Promi
 type Line = { speaker: "me" | "them"; text: string; key: number };
 
 /** Runs the real pipeline (capture → transcription) for a few seconds and shows what it hears. */
-function LiveCheck({ flush, hotkey }: { flush: () => Promise<void>; hotkey: string }) {
+function LiveCheck({ flush, hotkey, talk }: { flush: () => Promise<void>; hotkey: string; talk: string }) {
   const [status, setStatus] = useState<StatusEvent | null>(null);
   const [levels, setLevels] = useState({ me: 0, them: 0 });
   const [heard, setHeard] = useState({ me: false, them: false });
@@ -214,14 +220,14 @@ function LiveCheck({ flush, hotkey }: { flush: () => Promise<void>; hotkey: stri
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Meter label="You" detail="Microphone" level={levels.me} ok={heard.me} color="var(--color-lime-400)" />
+        <Meter label="You" detail={<>Hold <Kbd accel={talk} /> to talk</>} level={levels.me} ok={heard.me} color="var(--color-lime-400)" />
         <Meter label="Them" detail="System audio" level={levels.them} ok={heard.them} color="var(--color-sky-300)" />
       </div>
 
       <div className="min-h-[132px] rounded-xl border border-white/7 bg-ink-900/70 px-4 py-3">
         {lines.length === 0 ? (
           <p className="pt-9 text-center text-[12.5px] text-ink-400">
-            {listening ? "Listening… say something." : "What Fluke hears will appear here."}
+            {listening ? "Listening… play a video, or hold the talk shortcut and speak." : "What Fluke hears will appear here."}
           </p>
         ) : (
           <ul className="space-y-1.5">
@@ -265,7 +271,7 @@ function Meter({
   color,
 }: {
   label: string;
-  detail: string;
+  detail: React.ReactNode;
   level: number;
   ok: boolean;
   color: string;

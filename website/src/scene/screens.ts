@@ -217,56 +217,72 @@ export class KeyboardTex {
     return rows;
   }
 
-  draw(hotkey: number) {
+  /** Lights the chord for `hotkey` plus any keys the visitor is holding on their real keyboard. */
+  draw(hotkey: number, pressed: ReadonlySet<string>) {
     const idx = Math.round(hotkey);
     const lit = new Set(idx >= 0 && idx < KeyboardTex.CHORDS.length ? KeyboardTex.CHORDS[idx] : []);
-    const key = `${idx}`;
+    for (const k of pressed) lit.add(k);
+    const key = `${idx}|${[...pressed].sort().join(",")}`;
     this.tex.update(key, (ctx) => this.paint(ctx, lit, false));
     this.emissive.update(key, (ctx) => this.paint(ctx, lit, true));
   }
 
-  private paint(ctx: CanvasRenderingContext2D, lit: Set<string>, emissive: boolean) {
+  /** Every key's rectangle in texture pixels (logical units), shared by the art and the 3D keycaps. */
+  rects() {
     const { w, h } = this.tex;
-    ctx.fillStyle = emissive ? "#000" : "#121418";
-    ctx.fillRect(0, 0, w, h);
-    const rows = this.layout();
     const pad = 22;
     const gap = 10;
     const unit = (w - pad * 2 - gap * 13) / 15;
     const kh = (h - pad * 2 - gap * 4) / 5;
-    rows.forEach((row, ri) => {
+    const out: { label: string; x: number; y: number; w: number; h: number }[] = [];
+    this.layout().forEach((row, ri) => {
       const total = row.reduce((s, [, u]) => s + u, 0);
       const scale = (w - pad * 2 - gap * (row.length - 1)) / (total * unit);
       let x = pad;
       const y = pad + ri * (kh + gap);
       for (const [label, u] of row) {
         const kw = u * unit * scale;
-        const on = lit.has(label);
-        if (emissive) {
-          if (on) {
-            ctx.strokeStyle = LIME;
-            ctx.lineWidth = 5;
-            roundRect(ctx, x + 2, y + 2, kw - 4, kh - 4, 11);
-            ctx.stroke();
-            ctx.fillStyle = LIME;
-            ctx.font = `600 ${label.length > 1 ? 22 : 28}px ${FONT_BODY}`;
-            ctx.textBaseline = "top";
-            ctx.fillText(label, x + 14, y + 12);
-          }
-        } else {
-          ctx.fillStyle = on ? "#1d2513" : "#1b1e23";
-          roundRect(ctx, x, y, kw, kh, 12);
-          ctx.fill();
-          ctx.strokeStyle = on ? LIME : "rgba(255,255,255,0.05)";
-          ctx.lineWidth = on ? 3 : 1.5;
-          ctx.stroke();
-          ctx.fillStyle = on ? LIME : "#5d636e";
-          ctx.font = `500 ${label.length > 1 ? 20 : 26}px ${FONT_BODY}`;
-          ctx.textBaseline = "top";
-          ctx.fillText(label, x + 14, y + 12);
-        }
+        out.push({ label, x, y, w: kw, h: kh });
         x += kw + gap;
       }
     });
+    return out;
+  }
+
+  private paint(ctx: CanvasRenderingContext2D, lit: Set<string>, emissive: boolean) {
+    const { w, h } = this.tex;
+    ctx.fillStyle = emissive ? "#000" : "#07080a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.textBaseline = "top";
+    for (const k of this.rects()) {
+      const on = lit.has(k.label);
+      const size = k.label.length > 1 ? 19 : 25;
+      if (emissive) {
+        // Every legend is faintly backlit; a lit chord glows lime with a halo around the cap.
+        if (on) {
+          ctx.strokeStyle = LIME;
+          ctx.lineWidth = 4;
+          roundRect(ctx, k.x + 3, k.y + 3, k.w - 6, k.h - 6, 10);
+          ctx.stroke();
+        }
+        ctx.fillStyle = on ? LIME : "rgba(214, 222, 232, 0.16)";
+        ctx.font = `${on ? 620 : 520} ${size}px ${FONT_BODY}`;
+        ctx.fillText(k.label, k.x + 14, k.y + 12);
+      } else {
+        // Satin cap: a soft top-lit gradient, the legend printed top-left.
+        const g = ctx.createLinearGradient(0, k.y, 0, k.y + k.h);
+        g.addColorStop(0, on ? "#222b16" : "#1c1f24");
+        g.addColorStop(1, on ? "#182010" : "#141619");
+        ctx.fillStyle = g;
+        roundRect(ctx, k.x, k.y, k.w, k.h, 12);
+        ctx.fill();
+        ctx.strokeStyle = on ? LIME : "rgba(255,255,255,0.06)";
+        ctx.lineWidth = on ? 3 : 1.2;
+        ctx.stroke();
+        ctx.fillStyle = on ? LIME : "#8a909b";
+        ctx.font = `500 ${size}px ${FONT_BODY}`;
+        ctx.fillText(k.label, k.x + 14, k.y + 12);
+      }
+    }
   }
 }

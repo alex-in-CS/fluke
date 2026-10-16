@@ -47,6 +47,8 @@ export const api = {
   openSettings: (section?: string) => invoke<void>("open_settings", { section: section ?? null }),
   hideOverlay: () => invoke<void>("hide_overlay"),
   setClickThrough: (on: boolean) => invoke<void>("set_click_through", { on }),
+  setMic: (on: boolean) => invoke<void>("set_mic", { on }),
+  setSessionNotes: (notes: string) => invoke<void>("set_session_notes", { notes }),
   quit: () => invoke<void>("quit"),
 
   listContextDocs: (profileId: string) => invoke<ContextDoc[]>("list_context_docs", { profileId }),

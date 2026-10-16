@@ -24,15 +24,18 @@ use crate::state::{
 use crate::storage::{AnswerRecord, ContextDoc, Memory, Segment, Speaker};
 use crate::stt::{self, SttConfig, SttEvent};
 
-/// How long the other side must stay quiet after a question before we auto-answer.
-const QUESTION_SETTLE: Duration = Duration::from_millis(900);
+/// How long the other side must stay quiet after a question before we auto-answer. Deepgram
+/// already waits for end of speech before sending a final, so this only catches run-on follow-ups.
+const QUESTION_SETTLE: Duration = Duration::from_millis(350);
+/// Screen text older than this isn't sent with answers.
+const SCREEN_FRESH_MS: i64 = 15_000;
 
 // ---------------------------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------------------------
 
 /// Make sure the current session has a row (tagged with the active profile, for memory).
-fn persist_session_start(app: &AppHandle) {
+pub fn persist_session_start(app: &AppHandle) {
     let st = state(app);
     let (id, started) = {
         let s = st.session.lock();
@@ -161,6 +164,8 @@ pub fn start_listening(app: &AppHandle) -> Result<()> {
         (Speaker::Me, b.capture_mic, b.mic_device.clone()),
         (Speaker::Them, b.capture_system, b.output_device.clone()),
     ];
+    st.mic.latched.store(b.mic_default_on, Ordering::Relaxed);
+    st.mic.held.store(false, Ordering::Relaxed);
     for (speaker, enabled, device) in sources {
         if !enabled {
             continue;
@@ -169,6 +174,23 @@ pub fn start_listening(app: &AppHandle) -> Result<()> {
             Ok((handle, audio_rx)) => {
                 levels.push((speaker, handle.level.clone()));
                 captures.push(handle);
+                // The mic keeps running so opening it is instant, but its audio only reaches
+                // speech-to-text while the gate is open.
+                let audio_rx = if speaker == Speaker::Me {
+                    let (gated_tx, gated_rx) = mpsc::channel::<Vec<i16>>(64);
+                    let gate = st.mic.clone();
+                    let mut raw = audio_rx;
+                    tasks.push(tauri::async_runtime::spawn(async move {
+                        while let Some(frame) = raw.recv().await {
+                            if gate.is_open() && gated_tx.send(frame).await.is_err() {
+                                break;
+                            }
+                        }
+                    }));
+                    gated_rx
+                } else {
+                    audio_rx
+                };
                 let cfg = SttConfig {
                     provider: provider.clone(),
                     api_key: api_key.clone(),
@@ -213,10 +235,66 @@ pub fn start_listening(app: &AppHandle) -> Result<()> {
         app.clone(),
         levels,
     )));
+    if b.watch_screen {
+        tasks.push(tauri::async_runtime::spawn(crate::screen::watch(app.clone())));
+    }
+    warm_up_llm(app);
 
-    st.session.lock().live = Some(LivePipeline { captures, tasks });
+    {
+        let mut s = st.session.lock();
+        s.live = Some(LivePipeline { captures, tasks });
+        s.watching = b.watch_screen;
+    }
     emit_status(app);
     Ok(())
+}
+
+/// Open the connection to the answering provider now (DNS, TLS, HTTP/2), so the first answer
+/// doesn't pay for the handshake. The client pool keeps it alive with pings.
+fn warm_up_llm(app: &AppHandle) {
+    let st = state(app);
+    let settings = st.settings();
+    let Some(provider) = settings.provider(&settings.llm.provider_id).cloned() else {
+        return;
+    };
+    let Ok(key) = secrets::get(&provider.id) else {
+        return;
+    };
+    let Ok(client) = LlmClient::new(provider, key, st.http.clone()) else {
+        return;
+    };
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = client.list_models().await {
+            tracing::debug!("warm-up: {e}");
+        }
+    });
+}
+
+/// Push-to-talk: the user's voice is transcribed only while the key is held.
+pub fn hold_mic(app: &AppHandle, down: bool) {
+    let st = state(app);
+    let was = st.mic.held.swap(down, Ordering::Relaxed);
+    if was == down {
+        return; // key repeat
+    }
+    if !down {
+        st.mic
+            .tail_until
+            .store(now_ms() + crate::state::MicGate::TAIL_MS, Ordering::Relaxed);
+    }
+    emit_status(app);
+}
+
+/// The overlay's mic button: keep the user's mic open until turned off.
+pub fn set_mic(app: &AppHandle, on: bool) {
+    let st = state(app);
+    st.mic.latched.store(on, Ordering::Relaxed);
+    if !on {
+        st.mic
+            .tail_until
+            .store(now_ms() + crate::state::MicGate::TAIL_MS, Ordering::Relaxed);
+    }
+    emit_status(app);
 }
 
 pub fn stop_listening(app: &AppHandle) {
@@ -225,6 +303,8 @@ pub fn stop_listening(app: &AppHandle) {
         let mut s = st.session.lock();
         s.me = SourceStatus::off();
         s.them = SourceStatus::off();
+        s.watching = false;
+        s.screen = None;
         s.live.take()
     };
     if let Some(live) = live {
@@ -453,6 +533,7 @@ pub async fn ask(
             model: model_label.clone(),
             with_screen,
             auto,
+            source: trigger.source(),
             created_at,
         },
     );
@@ -483,10 +564,15 @@ pub async fn ask(
                     Err(e) => toast(&app, "warn", format!("Screenshot skipped: {e}")),
                 }
             }
-            let (segments, previous, session_id) = {
+            let (segments, previous, session_id, notes, screen_text) = {
                 let st = state(&app);
                 let s = st.session.lock();
-                (s.segments.clone(), s.answers.clone(), s.id.clone())
+                let screen = s
+                    .screen
+                    .as_ref()
+                    .filter(|t| s.watching && now_ms() - t.at <= SCREEN_FRESH_MS)
+                    .map(|t| t.text.clone());
+                (s.segments.clone(), s.answers.clone(), s.id.clone(), s.notes.clone(), screen)
             };
             // File reads / PDF re-extraction stay off the async runtime.
             let (docs, memories) = {
@@ -506,7 +592,11 @@ pub async fn ask(
                 now_ms(),
                 &previous,
                 &trigger,
-                !parts.is_empty(),
+                &prompt::Live {
+                    notes: &notes,
+                    screen_text: screen_text.as_deref(),
+                    has_screenshot: !parts.is_empty(),
+                },
             );
             parts.push(Part::Text(text));
             let req = ChatRequest {

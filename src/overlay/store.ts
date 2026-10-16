@@ -13,6 +13,8 @@ import type {
 } from "../lib/types";
 
 export type AnswerStatus = "streaming" | "done" | "error" | "cancelled";
+export type AnswerSource = "typed" | "assist" | "heard" | "screen";
+export type Panel = "answer" | "transcript" | "context";
 
 export interface Answer {
   id: string;
@@ -21,9 +23,14 @@ export interface Answer {
   model: string;
   withScreen: boolean;
   auto: boolean;
+  /** "typed" | "assist" | "heard" | "screen" */
+  source: AnswerSource;
   createdAt: number;
   status: AnswerStatus;
   error?: string;
+  /** When the request started (local clock), and how long the first words took. */
+  startedAt?: number;
+  firstTokenMs?: number;
 }
 
 export interface Toast extends ToastEvent {
@@ -41,7 +48,9 @@ interface OverlayState {
   viewing: number | null;
   levels: LevelsEvent;
   toasts: Toast[];
-  panel: "answer" | "transcript";
+  panel: Panel;
+  /** Quick notes for this meeting (sent with every answer). */
+  notes: string;
 
   loadSnapshot: (s: Snapshot) => void;
   setStatus: (s: StatusEvent) => void;
@@ -53,7 +62,8 @@ interface OverlayState {
   pushToast: (t: ToastEvent) => void;
   dismissToast: (id: number) => void;
   view: (index: number | null) => void;
-  setPanel: (p: "answer" | "transcript") => void;
+  setPanel: (p: Panel) => void;
+  setNotes: (n: string) => void;
   resetSession: () => void;
 }
 
@@ -71,10 +81,12 @@ export const useOverlay = create<OverlayState>((set, get) => ({
   levels: { me: 0, them: 0 },
   toasts: [],
   panel: "answer",
+  notes: "",
 
   loadSnapshot: (s) =>
     set({
       status: s.status,
+      notes: s.notes,
       segments: s.segments.slice(-MAX_SEGMENTS),
       answers: s.answers.map((a) => ({
         id: a.id,
@@ -83,6 +95,7 @@ export const useOverlay = create<OverlayState>((set, get) => ({
         model: a.model,
         withScreen: a.with_screen,
         auto: false,
+        source: "typed",
         createdAt: a.created_at,
         status: "done",
       })),
@@ -92,7 +105,7 @@ export const useOverlay = create<OverlayState>((set, get) => ({
     const prev = get().status;
     if (prev && prev.session_id !== status.session_id) {
       // A new session started elsewhere (tray, hotkey): clear local view.
-      set({ segments: [], answers: [], interim: { me: "", them: "" }, viewing: null });
+      set({ segments: [], answers: [], interim: { me: "", them: "" }, viewing: null, notes: "" });
     }
     set({ status });
   },
@@ -126,8 +139,10 @@ export const useOverlay = create<OverlayState>((set, get) => ({
           model: e.model,
           withScreen: e.with_screen,
           auto: e.auto,
+          source: e.source,
           createdAt: e.created_at,
           status: "streaming",
+          startedAt: performance.now(),
         };
         // Jump to the new answer.
         return { answers: [...st.answers, a], viewing: null, panel: "answer" };
@@ -136,7 +151,11 @@ export const useOverlay = create<OverlayState>((set, get) => ({
         if (a.id !== e.id) return a;
         switch (e.kind) {
           case "delta":
-            return { ...a, text: a.text + e.text };
+            return {
+              ...a,
+              text: a.text + e.text,
+              firstTokenMs: a.firstTokenMs ?? (a.startedAt ? performance.now() - a.startedAt : undefined),
+            };
           case "done":
             return { ...a, status: "done" as const };
           case "error":
@@ -162,6 +181,8 @@ export const useOverlay = create<OverlayState>((set, get) => ({
 
   setPanel: (panel) => set({ panel }),
 
+  setNotes: (notes) => set({ notes }),
+
   resetSession: () =>
-    set({ segments: [], answers: [], interim: { me: "", them: "" }, viewing: null }),
+    set({ segments: [], answers: [], interim: { me: "", them: "" }, viewing: null, notes: "" }),
 }));

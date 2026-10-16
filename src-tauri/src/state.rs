@@ -1,7 +1,8 @@
 //! Shared application state and the event payloads sent to the webview.
 
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 
 use parking_lot::{Mutex, RwLock};
 use serde::Serialize;
@@ -57,6 +58,45 @@ pub struct StatusEvent {
     pub click_through: bool,
     pub session_id: String,
     pub answering: bool,
+    /// The user's mic is being transcribed right now (latched on or push-to-talk held).
+    pub mic_open: bool,
+    /// The screen is being read while listening.
+    pub watching: bool,
+}
+
+/// Decides whether the user's mic audio reaches speech-to-text. The mic itself keeps running
+/// (so opening it is instant), but nothing is transcribed or billed while the gate is shut.
+#[derive(Default)]
+pub struct MicGate {
+    /// Turned on with the overlay's mic button.
+    pub latched: AtomicBool,
+    /// Push-to-talk key is down.
+    pub held: AtomicBool,
+    /// After release, keep sending briefly so the last words get finalized (ms timestamp).
+    pub tail_until: AtomicI64,
+}
+
+impl MicGate {
+    /// Long enough for Deepgram endpointing / the local VAD to close the final utterance.
+    pub const TAIL_MS: i64 = 900;
+
+    pub fn is_open(&self) -> bool {
+        self.latched.load(Ordering::Relaxed)
+            || self.held.load(Ordering::Relaxed)
+            || now_ms() < self.tail_until.load(Ordering::Relaxed)
+    }
+
+    /// Open as far as the UI is concerned (ignores the release tail).
+    pub fn is_on(&self) -> bool {
+        self.latched.load(Ordering::Relaxed) || self.held.load(Ordering::Relaxed)
+    }
+}
+
+/// Text last read from the screen.
+#[derive(Debug, Clone, Default)]
+pub struct ScreenText {
+    pub text: String,
+    pub at: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,6 +118,8 @@ pub enum AnswerEvent {
         model: String,
         with_screen: bool,
         auto: bool,
+        /// "typed" | "assist" | "heard" | "screen"
+        source: &'static str,
         created_at: i64,
     },
     Delta {
@@ -120,6 +162,11 @@ pub struct SessionState {
     pub live: Option<LivePipeline>,
     /// Answer currently streaming: (answer id, task).
     pub answering: Option<(String, tauri::async_runtime::JoinHandle<()>)>,
+    /// Quick notes the user typed for this meeting; sent with every answer.
+    pub notes: String,
+    /// Latest text read from the screen while watching.
+    pub screen: Option<ScreenText>,
+    pub watching: bool,
 }
 
 impl SessionState {
@@ -133,6 +180,9 @@ impl SessionState {
             them: SourceStatus::off(),
             live: None,
             answering: None,
+            notes: String::new(),
+            screen: None,
+            watching: false,
         }
     }
 }
@@ -159,6 +209,7 @@ pub struct AppState {
     pub http: reqwest::Client,
     pub session: Mutex<SessionState>,
     pub click_through: AtomicBool,
+    pub mic: Arc<MicGate>,
 }
 
 impl AppState {
@@ -181,6 +232,8 @@ pub fn status_of(app: &AppHandle) -> StatusEvent {
         click_through: st.click_through.load(std::sync::atomic::Ordering::Relaxed),
         session_id: s.id.clone(),
         answering: s.answering.is_some(),
+        mic_open: s.live.is_some() && st.mic.is_on(),
+        watching: s.watching,
     }
 }
 

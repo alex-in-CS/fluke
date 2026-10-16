@@ -8,7 +8,7 @@ The marketing site for Fluke: a single page where scrolling flies a camera throu
 - **three.js** for the scene. All geometry is procedural and every screen is drawn to a 2D canvas texture, so there are no model or image files to load
 - **GSAP** (ScrollTrigger, SplitText) for the scroll timeline and intro
 - **Lenis** for smooth scrolling, driven by the GSAP ticker
-- Self-hosted fonts via Fontsource: Inter Tight, Inter, JetBrains Mono, Instrument Serif
+- One self-hosted typeface via Fontsource: **Mona Sans** (variable weight, width 75 to 125% and italics). Headlines are semi-expanded; accent lines contrast by width (condensed light italic) rather than by a second typeface; labels and keys use the semi-condensed cut with tabular figures. No monospace
 
 ## Run
 
@@ -30,7 +30,30 @@ src/story.ts        one master GSAP timeline whose time unit is "viewport height
 src/scene/state.ts  the numbers the timeline animates (camera, panel, ribbons, memory, ring, ...)
 src/scene/stage.ts  renderer, post-processing, camera framing, adaptive quality
 src/scene/*.ts      laptop, overlay, call screen and keyboard textures, particles, cards, ring, lock, dome
+src/scene/laptop.ts the hero laptop: bevelled brushed-aluminium slabs, merged 3D keycaps planar-mapped to the
+                    keyboard art, perforated grilles, ports, cover glass, camera
+src/scene/studio.ts product-photography studio rendered only into the environment map
+src/scene/fluid.ts  GPU fluid solver and the post pass that refracts the frame through it
+src/scene/textlayer.ts  paints the hero and finale headlines into the frame so the fluid bends them
+src/ui/sound.ts     generative Web Audio score (off by default)
+src/ui/voice.ts     "Try it with your voice": local mic level, on-device captions where available
+src/ui/effects.ts   grain, cursor, magnetic buttons, preloader wave
+src/ui/extras.ts    button label roll, card spotlight, chapter rail, footer wordmark,
+                    real keyboard mirrored onto the 3D keyboard
 ```
+
+### Interactions
+
+- **Fluid:** a stable-fluids solver (advection, vorticity confinement, pressure projection, after Pavel Dobryakov's MIT WebGL Fluid Simulation) runs on the GPU at 128 px (96 on phones). The cursor stirs it, a click drops ink into it, and scrolling drags the water. The whole frame is refracted through the velocity field with a faint lime/sky ink on top. Tunables live in `Fluid.config`.
+- **Liquid type:** the hero and finale headlines are painted into a canvas at their exact DOM positions (intro and scroll transforms included) and composited after the output pass, so the fluid refracts them like everything else. The DOM text stays for selection and screen readers with a transparent fill. Without the fluid pipeline (low quality, reduced motion, no WebGL) the DOM text simply shows.
+- **Opening:** the laptop starts closed in the dark. As the preloader lifts and the camera flies in, the lid swings open; the panel and key backlight power on, the overlay surfaces from the screen and the headline rises.
+- **Try it with your voice:** an opt-in button in the Listen chapter. The microphone drives the You stream and the You tile through a local Web Audio analyser. Captions appear only where the browser can transcribe on-device (`SpeechRecognition.processLocally`); otherwise it is level-only. A question in the captions shows "Question detected". Audio never leaves the page. The strip stops on Stop or when the tab is hidden.
+- **Overture:** one statement after the hero, lit word by word by the scroll while both audio streams play.
+- **Sound:** the nav toggle starts a score synthesised live with Web Audio, no files: a pad that moves through one chord per chapter, filtered air that rises with scroll speed, and a quiet chime on each chapter arrival.
+- **Pointer:** the dust also parts around the cursor.
+- **Keyboard:** keys you hold light up on the 3D laptop. On the Hotkeys chapter, pressing a real chord flashes its row.
+- **Chapters:** eyebrows wipe open, headline lines rise out of masks and body lines follow, all scrubbed by the scroll. The right-edge rail tracks progress and jumps to any chapter.
+- **Footer:** the wordmark rises with scroll and its letters thicken and light up near the pointer (Inter Tight's weight axis).
 
 Chapter lengths (how long each section stays pinned) live in `LENGTHS` in `src/main.ts`. Change a camera angle in `POSES` in `src/story.ts`.
 

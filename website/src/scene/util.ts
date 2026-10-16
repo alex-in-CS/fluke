@@ -4,9 +4,16 @@ export const LIME = "#b6f36b";
 export const SKY = "#7dd3fc";
 export const INK = "#07080a";
 
-export const FONT_DISPLAY = '"Inter Tight Variable", "Inter Variable", system-ui, sans-serif';
-export const FONT_BODY = '"Inter Variable", system-ui, sans-serif';
-export const FONT_MONO = '"JetBrains Mono Variable", ui-monospace, monospace';
+export const FONT_DISPLAY = '"Mona Sans Variable", system-ui, sans-serif';
+export const FONT_BODY = '"Mona Sans Variable", system-ui, sans-serif';
+/** Small figures and labels inside the scene: Mona Sans too (the site uses no monospace). */
+export const FONT_MONO = '"Mona Sans Variable", system-ui, sans-serif';
+
+let textureScale = 1;
+/** Resolution multiplier for canvas textures created after this call (set once, before the stage). */
+export function setTextureScale(s: number) {
+  textureScale = s;
+}
 
 export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const rr = Math.min(r, w / 2, h / 2);
@@ -25,29 +32,37 @@ export class CanvasTex {
   readonly ctx: CanvasRenderingContext2D;
   readonly texture: THREE.CanvasTexture;
   private key = "";
+  private readonly scale: number;
+  private readonly logicalW: number;
+  private readonly logicalH: number;
 
+  /** Width and height are logical units; the backing canvas is `textureScale` times larger. */
   constructor(width: number, height: number, anisotropy = 4) {
+    this.scale = textureScale;
+    this.logicalW = width;
+    this.logicalH = height;
     this.canvas = document.createElement("canvas");
-    this.canvas.width = width;
-    this.canvas.height = height;
+    this.canvas.width = Math.round(width * this.scale);
+    this.canvas.height = Math.round(height * this.scale);
     this.ctx = this.canvas.getContext("2d")!;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.texture.anisotropy = anisotropy;
+    this.texture.anisotropy = Math.max(anisotropy, 16);
   }
 
   get w() {
-    return this.canvas.width;
+    return this.logicalW;
   }
 
   get h() {
-    return this.canvas.height;
+    return this.logicalH;
   }
 
   /** Redraws only when `key` differs from the last drawn key. */
   update(key: string, draw: (ctx: CanvasRenderingContext2D) => void) {
     if (key === this.key) return;
     this.key = key;
+    this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
     draw(this.ctx);
     this.texture.needsUpdate = true;
   }

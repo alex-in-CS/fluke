@@ -60,6 +60,9 @@ export interface Behavior {
   anthropic_effort: string | null;
   max_output_tokens: number;
   opacity: number;
+  watch_screen: boolean;
+  screen_commentary: boolean;
+  mic_default_on: boolean;
 }
 
 export interface Hotkeys {
@@ -68,6 +71,7 @@ export interface Hotkeys {
   toggle_listen: string;
   focus_input: string;
   click_through: string;
+  push_to_talk: string;
   move_up: string;
   move_down: string;
   move_left: string;
@@ -107,6 +111,8 @@ export interface StatusEvent {
   click_through: boolean;
   session_id: string;
   answering: boolean;
+  mic_open: boolean;
+  watching: boolean;
 }
 
 export interface Segment {
@@ -132,6 +138,7 @@ export type AnswerEvent =
       model: string;
       with_screen: boolean;
       auto: boolean;
+      source: "typed" | "assist" | "heard" | "screen";
       created_at: number;
     }
   | { kind: "delta"; id: string; text: string }
@@ -163,6 +170,7 @@ export interface Snapshot {
   started_at: number;
   segments: Segment[];
   answers: AnswerRecord[];
+  notes: string;
 }
 
 export interface SessionSummary {

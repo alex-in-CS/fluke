@@ -132,6 +132,8 @@ const MIGRATIONS: &[&str] = &[
          added_at   INTEGER NOT NULL
      );
      CREATE INDEX IF NOT EXISTS context_docs_profile ON context_docs(profile_id);",
+    // 3: quick notes typed into the overlay during a meeting
+    "ALTER TABLE sessions ADD COLUMN notes TEXT NOT NULL DEFAULT '';",
 ];
 
 pub struct Db {
@@ -195,6 +197,14 @@ impl Db {
         self.conn.execute(
             "UPDATE sessions SET summary = ?2, summary_at = ?3 WHERE id = ?1",
             params![id, summary, at],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_notes(&self, id: &str, notes: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE sessions SET notes = ?2 WHERE id = ?1",
+            params![id, notes],
         )?;
         Ok(())
     }

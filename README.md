@@ -30,8 +30,9 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 |---|---|
 | **Your keys, any model** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, xAI, Mistral, Ollama, LM Studio, or any OpenAI-compatible endpoint |
 | **Keys never touch the UI** | Stored in Windows Credential Manager, read only by the Rust core |
-| **Knows who said what** | Mic ("You") and system audio ("Them") are captured and transcribed as separate streams, with no virtual audio cable needed |
-| **Proactive** | Detects when the other side asks you a question and drafts an answer as soon as they stop talking |
+| **Knows who said what** | System audio ("Them") and your mic ("You") are separate streams, with no virtual audio cable needed. Your voice is transcribed only while you hold push-to-talk (or turn the mic on), so you never pay to transcribe yourself |
+| **Proactive** | Answers when the other side asks a question, when a question appears on your screen, and briefs you when the screen changes (new slide, page, document) |
+| **Watches the screen** | Reads on-screen text with Windows' built-in OCR, on your PC. Nothing is uploaded just for watching |
 | **Context that sticks** | Per-profile instructions, linked reference files (PDF, DOCX, Markdown…) and **meeting memory**: notes from past meetings are fed back in automatically |
 | **Private by design** | No servers, no telemetry. History lives in a local SQLite file. The overlay can be excluded from screen sharing |
 | **Light** | Native Rust core and system WebView, with no bundled Chromium |
@@ -41,7 +42,11 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
 - **Floating overlay**: always-on-top, translucent, draggable, and sized exactly to its content so it never blocks clicks. Click-through mode lets you work "through" it.
 - **Live transcript** of both sides with interim results (Deepgram streaming) or utterance-level transcription (any OpenAI-compatible `/audio/transcriptions`, such as OpenAI, Groq, Mistral or a local Whisper server).
 - **Ask anything**: one hotkey answers "what's happening now" using the transcript plus an optional screenshot. Or type a question.
-- **Auto-answer**: question detection on the other side's speech, with a settle timer so it waits until they finish.
+- **Auto-answer**: question detection on the other side's speech; the answer starts about a third of a second after they stop.
+- **Screen watching** while listening: every ~1.2 s Fluke reads the screen text locally (skipping unchanged frames), answers new questions that appear, briefs you on big changes (at most every 20 s), and sends the current screen text with every answer.
+- **Push-to-talk**: hold `Ctrl + Shift + M` to include your own voice, or click the mic button to keep it on.
+- **Context panel** on the overlay: type notes for this meeting, attach files, switch profile, without opening Settings.
+- **Fast by design**: the provider connection is opened when you start listening and kept warm; answers lead with one line you can say; each answer shows its time to first words.
 - **Profiles**: Sales call, Meeting, Interview prep, or your own. Each has instructions, background notes, **linked context files** and a **meeting-memory** setting.
 - **Meeting memory**: when a session ends, Fluke writes notes (decisions, action items, open questions, details worth remembering). The next meetings in that profile get the latest *N* notes as context. Notes are editable in History.
 - **Linked files**: attach agendas, specs, running notes or a resume. Text is extracted locally, and if the file changes on disk, the next answer uses the new version.
@@ -51,7 +56,8 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
   | Action | Default |
   |---|---|
   | Answer what's happening now | `Ctrl + Shift + Enter` |
-  | Start / stop listening | `Ctrl + Shift + L` |
+  | Start / stop listening (call + screen) | `Ctrl + Shift + L` |
+  | Hold to include your voice | `Ctrl + Shift + M` |
   | Type a question | `Ctrl + Shift + K` |
   | Show / hide overlay | `Ctrl + Shift + Space` |
   | Click-through | `Ctrl + Shift + X` |
@@ -71,6 +77,7 @@ screen and transcripts pass through someone else's servers. Fluke is the opposit
             │      │                                                                         │
             │      ▼                                                                         │
             │ session.rs  transcript ─► question detection (prompt.rs) ─► auto-answer         │
+            │ screen.rs   screen text (Windows OCR) ─► new questions / big changes ─► answer  │
             │             ask() ─► context: profile + files (context.rs) + memory (memory.rs) │
             │                    + transcript window + screenshot (capture.rs, xcap)          │
             │      │                                                                         │
@@ -165,6 +172,7 @@ src-tauri/src/
   memory.rs     meeting notes → memory
   storage.rs    SQLite schema + migrations
   secrets.rs    Windows Credential Manager
+  screen.rs     screen watching (on-device OCR, question + change detection)
   capture.rs    screenshots
   hotkeys.rs, window.rs, commands.rs, config.rs, state.rs
 src/

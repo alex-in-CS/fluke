@@ -147,10 +147,11 @@ export class Ribbons {
     for (const r of [this.mic, ...this.speakers]) r.material.uniforms.uPixelRatio.value = pr;
   }
 
-  update(dt: number, time: number, intensity: number, speaker: number) {
+  /** `voice` is the visitor's live mic level: it drives the You stream on top of the story. */
+  update(dt: number, time: number, intensity: number, speaker: number, voice = 0) {
     const them = speaker > 0.5 && speaker < 1.5 ? 1 : 0.3;
-    const you = speaker > 1.5 ? 1 : 0.3;
-    this.mic.update(dt, time, intensity, you);
+    const you = Math.max(speaker > 1.5 ? 1 : 0.3, voice);
+    this.mic.update(dt, time, Math.max(intensity, voice * 0.95), you);
     for (const r of this.speakers) r.update(dt, time, intensity, them);
   }
 }
@@ -163,11 +164,13 @@ export class Dust {
   readonly points: THREE.Points;
   private readonly base: Float32Array;
   private readonly pos: Float32Array;
+  private readonly off: Float32Array;
   readonly material = pointsMaterial("#cfd6e0", 26);
 
   constructor(count: number) {
     this.base = new Float32Array(count * 3);
     this.pos = new Float32Array(count * 3);
+    this.off = new Float32Array(count * 3);
     const alpha = new Float32Array(count);
     const scale = new Float32Array(count);
     for (let i = 0; i < count; i++) {
@@ -187,12 +190,38 @@ export class Dust {
     this.points.frustumCulled = false;
   }
 
-  update(time: number) {
+  /**
+   * Drifts the dust and parts it around the pointer (`field.w` is the push strength).
+   */
+  update(time: number, dt: number, field: THREE.Vector4) {
+    const R = 2.6;
+    const ease = 1 - Math.exp(-dt * 6);
     for (let i = 0; i < this.pos.length; i += 3) {
       const s = i * 0.37;
-      this.pos[i] = this.base[i] + Math.sin(time * 0.07 + s) * 0.6;
-      this.pos[i + 1] = this.base[i + 1] + Math.sin(time * 0.11 + s * 1.3) * 0.5;
-      this.pos[i + 2] = this.base[i + 2] + Math.cos(time * 0.06 + s) * 0.6;
+      const x = this.base[i] + Math.sin(time * 0.07 + s) * 0.6;
+      const y = this.base[i + 1] + Math.sin(time * 0.11 + s * 1.3) * 0.5;
+      const z = this.base[i + 2] + Math.cos(time * 0.06 + s) * 0.6;
+      let ox = 0;
+      let oy = 0;
+      let oz = 0;
+      if (field.w > 0.001) {
+        const dx = x - field.x;
+        const dy = y - field.y;
+        const dz = z - field.z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d < R && d > 1e-3) {
+          const f = (1 - d / R) ** 2 * 1.1 * field.w;
+          ox += (dx / d) * f;
+          oy += (dy / d) * f;
+          oz += (dz / d) * f;
+        }
+      }
+      this.off[i] += (ox - this.off[i]) * ease;
+      this.off[i + 1] += (oy - this.off[i + 1]) * ease;
+      this.off[i + 2] += (oz - this.off[i + 2]) * ease;
+      this.pos[i] = x + this.off[i];
+      this.pos[i + 1] = y + this.off[i + 1];
+      this.pos[i + 2] = z + this.off[i + 2];
     }
     this.points.geometry.attributes.position.needsUpdate = true;
   }

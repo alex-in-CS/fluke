@@ -139,6 +139,13 @@ pub struct Behavior {
     pub max_output_tokens: u32,
     /// Overlay background opacity, 0.3–1.0.
     pub opacity: f32,
+    /// While listening, read the screen's text (on-device OCR) and answer questions that appear.
+    pub watch_screen: bool,
+    /// Also brief the user when the screen content changes a lot (new slide, page, document).
+    pub screen_commentary: bool,
+    /// Start listening with the user's mic open. Off = push-to-talk / mic button only, so the
+    /// user's own voice is transcribed (and billed) only when they choose.
+    pub mic_default_on: bool,
 }
 
 impl Default for Behavior {
@@ -155,6 +162,9 @@ impl Default for Behavior {
             anthropic_effort: Some("low".into()),
             max_output_tokens: 16000,
             opacity: 0.88,
+            watch_screen: true,
+            screen_commentary: true,
+            mic_default_on: false,
         }
     }
 }
@@ -167,6 +177,8 @@ pub struct Hotkeys {
     pub toggle_listen: String,
     pub focus_input: String,
     pub click_through: String,
+    /// Held down: the user's mic is transcribed. Released: it stops.
+    pub push_to_talk: String,
     pub move_up: String,
     pub move_down: String,
     pub move_left: String,
@@ -179,6 +191,7 @@ impl Default for Hotkeys {
             toggle_overlay: "CommandOrControl+Shift+Space".into(),
             ask: "CommandOrControl+Shift+Enter".into(),
             toggle_listen: "CommandOrControl+Shift+L".into(),
+            push_to_talk: "CommandOrControl+Shift+M".into(),
             focus_input: "CommandOrControl+Shift+K".into(),
             click_through: "CommandOrControl+Shift+X".into(),
             move_up: "CommandOrControl+Shift+Up".into(),
@@ -197,6 +210,7 @@ impl Hotkeys {
             ("toggle_listen", self.toggle_listen.as_str()),
             ("focus_input", self.focus_input.as_str()),
             ("click_through", self.click_through.as_str()),
+            ("push_to_talk", self.push_to_talk.as_str()),
             ("move_up", self.move_up.as_str()),
             ("move_down", self.move_down.as_str()),
             ("move_left", self.move_left.as_str()),

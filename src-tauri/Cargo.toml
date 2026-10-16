@@ -49,6 +49,8 @@ tauri-plugin-dialog = "2.8.3"
 pdf-extract = "0.12.1"
 zip = { version = "9.0.3", default-features = false, features = ["deflate"] }
 tauri-plugin-opener = "2.7.2"
+# Windows' built-in OCR for screen watching (same version Tauri already pulls in).
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Graphics_Imaging", "Media_Ocr", "Storage_Streams"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

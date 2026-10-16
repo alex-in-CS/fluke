@@ -45,8 +45,27 @@
         <a href="#private">Privacy</a>
         <a href="https://github.com/alex-in-CS/fluke" rel="noopener">GitHub</a>
       </nav>
-      <a class="btn btn--small" href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">Download</a>
+      <div class="nav__end">
+        <button class="sound" type="button" aria-pressed="false">
+          <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="sound__label">Sound</span>
+        </button>
+        <a class="btn btn--small" href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">Download</a>
+      </div>
     </header>
+
+    <nav class="rail" aria-label="Chapters">
+      <span class="rail__track" aria-hidden="true"><span class="rail__fill"></span></span>
+      <ol>
+        <li><a href="#listen"><span class="rail__label">Listen</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#answer"><span class="rail__label">Answer</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#see"><span class="rail__label">See</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#remember"><span class="rail__label">Remember</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#keys"><span class="rail__label">Your keys</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#private"><span class="rail__label">Private</span><span class="rail__n" aria-hidden="true"></span></a></li>
+        <li><a href="#hotkeys"><span class="rail__label">Hotkeys</span><span class="rail__n" aria-hidden="true"></span></a></li>
+      </ol>
+    </nav>
 
     <main id="top">
       <section class="hero" data-chapter="hero">
@@ -66,16 +85,29 @@
         </div>
       </section>
 
+      <section class="overture" id="overture" data-chapter="overture">
+        <div class="overture__pin">
+          <p class="overture__text">
+            Every call has two sides. Fluke hears both, keeps track of what was decided, and answers in your corner
+            with the model you choose.
+          </p>
+        </div>
+      </section>
+
       <section class="chapter chapter--left" id="listen" data-chapter="listen">
         <div class="chapter__pin">
           <div class="chapter__copy">
-            <p class="eyebrow"><span>01</span> Listen</p>
+            <p class="eyebrow">Listen</p>
             <h2>Two streams.<br />No guesswork.</h2>
             <p>
               Your mic is <b class="you">You</b>. System audio is <b class="them">Them</b>. Fluke transcribes each one on its
               own, so every line is attributed exactly, with no virtual audio cable and no speaker guessing.
             </p>
             <p class="small">Deepgram live streaming, or any Whisper-compatible endpoint, local servers included.</p>
+            <button class="talk" type="button" aria-pressed="false">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="2.5" width="6" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+              <span>Try it with your voice</span>
+            </button>
           </div>
         </div>
       </section>
@@ -83,7 +115,7 @@
       <section class="chapter chapter--right" id="answer" data-chapter="answer">
         <div class="chapter__pin">
           <div class="chapter__copy">
-            <p class="eyebrow"><span>02</span> Answer</p>
+            <p class="eyebrow">Answer</p>
             <h2>It speaks up<br />when they ask.</h2>
             <p>
               Fluke notices when the other side asks you something and drafts the answer as soon as they stop talking.
@@ -97,7 +129,7 @@
       <section class="chapter chapter--left" id="see" data-chapter="see">
         <div class="chapter__pin">
           <div class="chapter__copy">
-            <p class="eyebrow"><span>03</span> See</p>
+            <p class="eyebrow">See</p>
             <h2>Ask, and it<br />looks too.</h2>
             <p>
               Attach a screenshot of the screen you are on to any question. Slides, spreadsheets, code: Fluke reads them in
@@ -110,7 +142,7 @@
       <section class="chapter chapter--right" id="remember" data-chapter="remember">
         <div class="chapter__pin">
           <div class="chapter__copy">
-            <p class="eyebrow"><span>04</span> Remember</p>
+            <p class="eyebrow">Remember</p>
             <h2>Starts where the<br />last meeting ended.</h2>
             <p>
               When a session ends, Fluke writes notes: decisions, action items, open questions. The next meeting in that
@@ -129,7 +161,7 @@
       <section class="chapter chapter--left" id="keys" data-chapter="keys">
         <div class="chapter__pin">
           <div class="chapter__copy">
-            <p class="eyebrow"><span>05</span> Your keys</p>
+            <p class="eyebrow">Your keys</p>
             <h2>Any model.<br />Your account.</h2>
             <p>
               Plug in the providers you already pay for, or run fully local. Keys live in your operating system's keychain,
@@ -145,7 +177,7 @@
 
       <section class="private" id="private" data-chapter="private">
         <div class="private__inner">
-          <p class="eyebrow"><span>06</span> Private by design</p>
+          <p class="eyebrow">Private by design</p>
           <h2 class="private__title">Nothing sits between you and your model.</h2>
           <dl class="facts">
             <div>
@@ -173,7 +205,7 @@
 
       <section class="hotkeys" id="hotkeys" data-chapter="hotkeys">
         <div class="hotkeys__inner">
-          <p class="eyebrow"><span>07</span> Hotkeys</p>
+          <p class="eyebrow">Hotkeys</p>
           <h2>One keystroke away.</h2>
           <ol class="keys">
             <li data-keys="ctrl shift enter"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Enter</kbd></span><span>Answer what is happening now</span></li>
@@ -182,7 +214,7 @@
             <li data-keys="ctrl shift space"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></span><span>Show or hide the overlay</span></li>
             <li data-keys="ctrl shift x"><span class="caps"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></span><span>Click through it</span></li>
           </ol>
-          <p class="small">Every shortcut is global and configurable.</p>
+          <p class="small">Every shortcut is global and configurable. <span class="try">Try them on your keyboard now.</span></p>
         </div>
       </section>
 
@@ -202,18 +234,59 @@
     </main>
 
     <footer class="footer">
+      <div class="footer__top">
+        <div class="footer__brand">
+          <a class="footer__logo" href="#top" aria-label="Fluke, back to top">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 15.5c-.6-3.2-2.6-5.6-6.2-6.6C4.3 8.5 3 8.9 2.5 9.6c2.6.2 4.6 1.7 5.6 4.1.7 1.7 2 2.6 3.9 2.6s3.2-.9 3.9-2.6c1-2.4 3-3.9 5.6-4.1-.5-.7-1.8-1.1-3.3-.7-3.6 1-5.6 3.4-6.2 6.6Z" fill="currentColor" />
+              <path d="M3 20.5c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+            </svg>
+            <span>Fluke</span>
+          </a>
+          <p>The open-source copilot for calls and meetings. Your keys, any model, nothing in between.</p>
+        </div>
+        <nav class="footer__cols" aria-label="Footer">
+          <div>
+            <p class="footer__head">Product</p>
+            <ul>
+              <li><a href="https://github.com/alex-in-CS/fluke/releases/latest" rel="noopener">Download for Windows</a></li>
+              <li><a href="#listen">How it works</a></li>
+              <li><a href="#private">Privacy</a></li>
+              <li><a href="#hotkeys">Hotkeys</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="footer__head">Project</p>
+            <ul>
+              <li><a href="https://github.com/alex-in-CS/fluke" rel="noopener">Source on GitHub</a></li>
+              <li><a href="https://github.com/alex-in-CS/fluke/releases" rel="noopener">Release notes</a></li>
+              <li><a href="https://github.com/alex-in-CS/fluke/issues" rel="noopener">Report an issue</a></li>
+              <li><a href="https://github.com/alex-in-CS/fluke/blob/main/LICENSE" rel="noopener">MIT License</a></li>
+            </ul>
+          </div>
+        </nav>
+      </div>
       <p class="footer__use">
-        Fluke is made for meetings, sales calls, demos and research conversations. Follow the rules where you use it: many
-        exams, interviews and workplaces restrict assistive tools, and some places require everyone's consent before a
-        conversation is transcribed.
+        Made for meetings, sales calls, demos and research conversations. Use it where it is allowed: many exams, interviews
+        and workplaces restrict assistive tools, and some places require everyone's consent before a conversation is
+        transcribed.
       </p>
-      <div class="footer__row">
+      <div class="footer__bottom">
         <span>© 2026 alex-in-CS</span>
-        <a href="https://github.com/alex-in-CS/fluke" rel="noopener">Source</a>
-        <a href="https://github.com/alex-in-CS/fluke/blob/main/LICENSE" rel="noopener">MIT License</a>
-        <a href="https://github.com/alex-in-CS/fluke/issues" rel="noopener">Report an issue</a>
+        <a class="footer__totop" href="#top">Back to top <span aria-hidden="true">↑</span></a>
       </div>
     </footer>
+
+    <div class="caption" role="status" aria-live="polite">
+      <span class="caption__level" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="caption__who">You</span>
+      <span class="caption__body">
+        <span class="caption__text is-empty"></span>
+        <span class="caption__chip" hidden>Question detected. In the app, the answer starts streaming here.</span>
+        <span class="caption__note"></span>
+      </span>
+      <button class="caption__stop" type="button">Stop</button>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

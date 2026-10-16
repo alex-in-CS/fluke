@@ -1589,6 +1589,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "windows",
  "xcap",
  "zip",
 ]
