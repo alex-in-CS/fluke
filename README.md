@@ -5,8 +5,11 @@
 <h1 align="center">Fluke</h1>
 
 <p align="center">
-  A real-time AI copilot for calls and meetings. It hears both sides, reads your screen when you ask,
-  remembers past meetings, and streams answers from <b>the model you choose, with your own API keys</b>.
+  <b>Hears both sides of the call. Reads your screen. Has the answer ready before the pause gets awkward.</b>
+</p>
+
+<p align="center">
+  Your keys, any model, nothing in between. No servers, no subscription, no account.
 </p>
 
 <p align="center">
@@ -15,9 +18,18 @@
 
 <p align="center">
   <a href="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml"><img src="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/alex-in-CS/fluke/releases/latest"><img src="https://img.shields.io/github/v/release/alex-in-CS/fluke?include_prereleases&label=download" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-b6f36b" alt="MIT license" /></a>
+  <a href="https://alex-in-cs.github.io/fluke/"><img src="https://img.shields.io/badge/website-alex--in--cs.github.io%2Ffluke-b6f36b" alt="Website" /></a>
 </p>
+
+---
+
+The client asks for last quarter's churn number. Your mind goes blank. By the time they finish the
+sentence, Fluke has heard the question, found the number in the deck you linked, and put one line on
+your screen you can just say out loud.
+
+It sits in a small overlay on top of your call, Zoom, Meet, Teams, anything. It doesn't join the
+meeting as a bot, and it can hide itself from screen shares.
 
 ---
 
@@ -131,11 +143,13 @@ Tagged releases (`git tag v0.1.0 && git push --tags`) are built by
 
 ### First launch
 
-1. The overlay appears at the top of your screen. Click **Settings** (gear) → **Providers & keys**.
-2. Paste a key for your LLM provider (e.g. Anthropic) and for speech-to-text (Deepgram is recommended for streaming; Groq or OpenAI work too). Keys are validated immediately.
-3. **Models**: pick the answering model and transcription model.
-4. **Profiles**: write instructions, attach context files, keep meeting memory on.
-5. Press **Listen**, then **Ask** (or let auto-answer handle it).
+1. Fluke opens a three-step setup. **Answers**: paste one key (Anthropic, OpenAI, Gemini, Groq…) and the model is picked for you.
+2. **Transcription**: Deepgram is recommended for streaming; Groq, OpenAI or a local Whisper server work too.
+3. **Live check**: Fluke confirms both keys work before you rely on them in a call.
+4. Optional: in **Settings → Profiles**, write instructions, attach context files, keep meeting memory on.
+5. Press **Listen** (`Ctrl + Shift + L`). Fluke answers when the other side asks something; press `Ctrl + Shift + Enter` to ask yourself.
+
+Exact model ids and limits live under **Settings → Setup → Advanced**; hotkeys have their own tab. Changes save on their own.
 
 ### Running it for free
 
@@ -146,7 +160,7 @@ Fluke has no subscription; you only pay your providers, and several have free op
 | Transcription, streaming | Deepgram signup credit | Best latency. Fluke streams two channels (you + them), so each call minute uses two |
 | Transcription, utterance-level | Groq `whisper-large-v3-turbo` | Free tier with daily limits |
 | Transcription, offline | **Local Whisper** preset | Run an OpenAI-compatible Whisper server such as [speaches](https://github.com/speaches-ai/speaches) on port 8000. A GPU keeps it fast |
-| Answers | Gemini API free tier (Google AI Studio key), Groq, or Ollama / LM Studio locally | Free tiers may use your data to improve their models; check each provider's terms before using them for confidential calls |
+| Answers | Gemini API free tier, Groq, or Ollama / LM Studio locally | Free tiers may use your data to improve their models; check each provider's terms before using them for confidential calls |
 
 Consumer chat subscriptions (Claude Pro, ChatGPT Plus, Gemini Advanced) don't include API keys.
 
