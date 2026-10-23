@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml"><img src="https://github.com/alex-in-CS/fluke/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/alex-in-CS/fluke/releases/latest"><img src="https://img.shields.io/github/v/release/alex-in-CS/fluke?label=download" alt="Download" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-b6f36b" alt="MIT license" /></a>
   <a href="https://alex-in-cs.github.io/fluke/"><img src="https://img.shields.io/badge/website-alex--in--cs.github.io%2Ffluke-b6f36b" alt="Website" /></a>
 </p>
